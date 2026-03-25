@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -305,10 +306,11 @@ const tooltipStyles = StyleSheet.create({
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { workoutLog } = useWorkout();
+  const { workoutLog, deleteSession } = useWorkout();
   const [selectedEx, setSelectedEx] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
   const [chartMode, setChartMode] = useState<ChartMode>('weight');
+  const [showAll, setShowAll] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -340,11 +342,29 @@ export default function ProgressScreen() {
       .slice(-12);
   }, [currentEx, workoutLog]);
 
-  const recentSessions: SessionLog[] = useMemo(() => {
+  const allSessions: SessionLog[] = useMemo(() => {
     if (!currentEx) return [];
     const key = `${currentEx.dayId}_${currentEx.exIdx}`;
-    return (workoutLog[key] || []).slice().reverse().slice(0, 6);
+    return (workoutLog[key] || []).slice().reverse();
   }, [currentEx, workoutLog]);
+
+  const visibleSessions = showAll ? allSessions : allSessions.slice(0, 6);
+
+  const handleDelete = (session: SessionLog) => {
+    if (!currentEx) return;
+    Alert.alert(
+      'Delete Session',
+      `Remove the session from ${formatDate(session.date)}? This will update your charts and volume.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteSession(currentEx.dayId, currentEx.exIdx, session.date),
+        },
+      ]
+    );
+  };
 
   const summaryStats = useMemo(() => {
     if (!chartData.length) return null;
@@ -488,17 +508,28 @@ export default function ProgressScreen() {
             </View>
           )}
 
-          {/* Recent Sessions */}
-          {recentSessions.length > 0 && (
+          {/* All Sessions */}
+          {allSessions.length > 0 && (
             <View style={styles.sessionsCard}>
-              <Text style={styles.sectionLabel}>Recent Sessions</Text>
-              {recentSessions.map((session, i) => {
+              <View style={styles.sessionsHeader}>
+                <Text style={styles.sectionLabel}>
+                  Sessions ({allSessions.length})
+                </Text>
+                {allSessions.length > 6 && (
+                  <TouchableOpacity onPress={() => setShowAll(v => !v)}>
+                    <Text style={styles.showAllBtn}>
+                      {showAll ? 'Show less' : `Show all ${allSessions.length}`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {visibleSessions.map((session, i) => {
                 const maxWeight = Math.max(...session.sets.map(s => s.weight || 0));
                 const maxReps = Math.max(...session.sets.map(s => s.reps || 0));
                 const totalVol = session.sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
                 const e1rm = epley1RM(maxWeight, maxReps);
                 return (
-                  <View key={i} style={[styles.sessionRow, i < recentSessions.length - 1 && styles.sessionRowBorder]}>
+                  <View key={`${session.date}-${i}`} style={[styles.sessionRow, i < visibleSessions.length - 1 && styles.sessionRowBorder]}>
                     <View style={styles.sessionLeft}>
                       <Text style={styles.sessionDate}>{formatDate(session.date)}</Text>
                       <Text style={styles.sessionNote}>{session.sets.length} sets · {Math.round(totalVol).toLocaleString()} lbs vol</Text>
@@ -507,6 +538,13 @@ export default function ProgressScreen() {
                       <Text style={styles.sessionBest}>{maxWeight} × {maxReps}</Text>
                       <Text style={styles.sessionE1rm}>e1RM: {e1rm} lbs</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleDelete(session)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Feather name="trash-2" size={15} color={Colors.text3} />
+                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -718,11 +756,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
-  sessionRow: {
+  sessionsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
+  },
+  showAllBtn: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: Colors.accent,
+  },
+  sessionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 11,
+    gap: 8,
+  },
+  deleteBtn: {
+    padding: 4,
   },
   sessionRowBorder: {
     borderBottomWidth: 1,

@@ -21,6 +21,7 @@ interface WorkoutContextType {
   isDeloadWeek: boolean;
   setIsDeloadWeek: (v: boolean) => void;
   logSession: (dayId: string, exIdx: number, sets: SetLog[], date: string) => void;
+  deleteSession: (dayId: string, exIdx: number, date: string) => void;
   markCompleted: (dateKey: string, dayId: string) => void;
   getPrevSessions: (dayId: string, exIdx: number) => SessionLog[];
   getWeeklyVolume: () => Record<string, number>;
@@ -66,6 +67,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev };
       if (!next[key]) next[key] = [];
       next[key] = [...next[key], { date, sets }];
+      AsyncStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const deleteSession = useCallback((dayId: string, exIdx: number, date: string) => {
+    const key = `${dayId}_${exIdx}`;
+    setWorkoutLog(prev => {
+      const next = { ...prev };
+      if (!next[key]) return prev;
+      next[key] = next[key].filter(s => s.date !== date);
+      if (next[key].length === 0) delete next[key];
       AsyncStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(next)).catch(() => {});
       return next;
     });
@@ -120,6 +133,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       isDeloadWeek,
       setIsDeloadWeek,
       logSession,
+      deleteSession,
       markCompleted,
       getPrevSessions,
       getWeeklyVolume,
