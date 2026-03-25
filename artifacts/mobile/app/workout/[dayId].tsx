@@ -20,6 +20,7 @@ import { DAYS } from '@/constants/workoutData';
 import { useWorkout } from '@/context/WorkoutContext';
 import type { SetLog } from '@/context/WorkoutContext';
 
+
 interface SetState {
   weight: string;
   reps: string;
@@ -33,7 +34,7 @@ function getDateKey() {
 export default function WorkoutScreen() {
   const { dayId } = useLocalSearchParams<{ dayId: string }>();
   const insets = useSafeAreaInsets();
-  const { getPrevSessions, logSession, markCompleted, isDeloadWeek } = useWorkout();
+  const { getPrevSessions, logWorkout, markCompleted, isDeloadWeek } = useWorkout();
 
   const day = DAYS.find(d => d.id === dayId);
   const exercises = day?.exercises ?? [];
@@ -159,10 +160,11 @@ export default function WorkoutScreen() {
     return { totalSets, totalVol, exLogged };
   };
 
-  const confirmFinish = useCallback(async () => {
+  const confirmFinish = useCallback(() => {
     if (!dayId) return;
     const dateKey = getDateKey();
 
+    const exerciseSets: { exIdx: number; sets: SetLog[] }[] = [];
     for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
       const loggedSets: SetLog[] = [];
       sets[exIdx].forEach(s => {
@@ -171,8 +173,12 @@ export default function WorkoutScreen() {
         }
       });
       if (loggedSets.length > 0) {
-        await logSession(dayId, exIdx, loggedSets, dateKey);
+        exerciseSets.push({ exIdx, sets: loggedSets });
       }
+    }
+
+    if (exerciseSets.length > 0) {
+      logWorkout(dayId, exerciseSets, dateKey);
     }
 
     markCompleted(dateKey, dayId);
@@ -182,7 +188,7 @@ export default function WorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     setTimeout(() => router.back(), 500);
-  }, [dayId, exercises, sets, logSession, markCompleted]);
+  }, [dayId, exercises, sets, logWorkout, markCompleted]);
 
   if (!day) {
     return (

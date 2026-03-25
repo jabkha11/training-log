@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { DAYS, MUSCLE_TARGETS } from '@/constants/workoutData';
 
 export interface SetLog {
@@ -8,6 +8,7 @@ export interface SetLog {
 }
 
 export interface SessionLog {
+  id: string;
   date: string;
   sets: SetLog[];
 }
@@ -20,8 +21,10 @@ interface WorkoutContextType {
   completedWorkouts: CompletedWorkouts;
   isDeloadWeek: boolean;
   setIsDeloadWeek: (v: boolean) => void;
-  logSession: (dayId: string, exIdx: number, sets: SetLog[], date: string) => void;
-  deleteSession: (dayId: string, exIdx: number, date: string) => void;
+  logWorkout: (dayId: string, exerciseSets: { exIdx: number; sets: SetLog[] }[], date: string) => void;
+  deleteSession: (key: string, sessionId: string) => void;
+  updateSession: (key: string, sessionId: string, newSets: SetLog[]) => void;
+  clearAllData: () => void;
   markCompleted: (dateKey: string, dayId: string) => void;
   getPrevSessions: (dayId: string, exIdx: number) => SessionLog[];
   getWeeklyVolume: () => Record<string, number>;
@@ -29,14 +32,25 @@ interface WorkoutContextType {
 
 const WorkoutContext = createContext<WorkoutContextType | null>(null);
 
-const STORAGE_KEY_LOG = 'tl_log_v2';
+const STORAGE_KEY_LOG = 'tl_log_v3';
 const STORAGE_KEY_COMPLETED = 'tl_completed_v2';
 const STORAGE_KEY_DELOAD = 'tl_deload';
+
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+async function saveLog(data: WorkoutLogData) {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(data));
+  } catch {}
+}
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [workoutLog, setWorkoutLog] = useState<WorkoutLogData>({});
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkouts>({});
   const [isDeloadWeek, setIsDeloadWeekState] = useState(false);
+  const logRef = useRef<WorkoutLogData>({});
 
   useEffect(() => {
     const load = async () => {
@@ -46,7 +60,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(STORAGE_KEY_COMPLETED),
           AsyncStorage.getItem(STORAGE_KEY_DELOAD),
         ]);
-        if (log) setWorkoutLog(JSON.parse(log));
+        if (log) {
+          const parsed = JSON.parse(log);
+          logRef.current = parsed;
+          setWorkoutLog(parsed);
+        }
         if (completed) setCompletedWorkouts(JSON.parse(completed));
         if (deload) setIsDeloadWeekState(JSON.parse(deload));
       } catch {}
@@ -61,30 +79,54 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  const logSession = useCallback(async (dayId: string, exIdx: number, sets: SetLog[], date: string) => {
-    const key = `${dayId}_${exIdx}`;
-    setWorkoutLog(prev => {
-      const next = { ...prev };
-      if (!next[key]) next[key] = [];
-      next[key] = [...next[key], { date, sets }];
-      AsyncStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
+  const logWorkout = useCallback((
+    dayId: string,
+    exerciseSets: { exIdx: number; sets: SetLog[] }[],
+    date: string,
+  ) => {
+    const sessionId = makeId();
+    const next = { ...logRef.current };
+    for (const { exIdx, sets } of exerciseSets) {
+      if (sets.length === 0) continue;
+      const key = `${dayId}_${exIdx}`;
+      next[key] = [...(next[key] ?? []), { id: sessionId, date, sets }];
+    }
+    logRef.current = next;
+    setWorkoutLog(next);
+    saveLog(next);
   }, []);
 
-  const deleteSession = useCallback((dayId: string, exIdx: number, date: string) => {
-    const key = `${dayId}_${exIdx}`;
-    setWorkoutLog(prev => {
-      const next = { ...prev };
-      if (!next[key]) return prev;
-      next[key] = next[key].filter(s => s.date !== date);
-      if (next[key].length === 0) delete next[key];
-      AsyncStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
+  const deleteSession = useCallback((key: string, sessionId: string) => {
+    const next = { ...logRef.current };
+    if (!next[key]) return;
+    next[key] = next[key].filter(s => s.id !== sessionId);
+    if (next[key].length === 0) delete next[key];
+    logRef.current = next;
+    setWorkoutLog(next);
+    saveLog(next);
   }, []);
 
-  const markCompleted = useCallback(async (dateKey: string, dayId: string) => {
+  const updateSession = useCallback((key: string, sessionId: string, newSets: SetLog[]) => {
+    const next = { ...logRef.current };
+    if (!next[key]) return;
+    next[key] = next[key].map(s =>
+      s.id === sessionId ? { ...s, sets: newSets } : s
+    );
+    logRef.current = next;
+    setWorkoutLog(next);
+    saveLog(next);
+  }, []);
+
+  const clearAllData = useCallback(async () => {
+    logRef.current = {};
+    setWorkoutLog({});
+    setCompletedWorkouts({});
+    try {
+      await AsyncStorage.multiRemove([STORAGE_KEY_LOG, STORAGE_KEY_COMPLETED]);
+    } catch {}
+  }, []);
+
+  const markCompleted = useCallback((dateKey: string, dayId: string) => {
     setCompletedWorkouts(prev => {
       const next = { ...prev, [dateKey]: dayId };
       AsyncStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(next)).catch(() => {});
@@ -94,8 +136,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
   const getPrevSessions = useCallback((dayId: string, exIdx: number): SessionLog[] => {
     const key = `${dayId}_${exIdx}`;
-    return (workoutLog[key] || []).slice().reverse();
-  }, [workoutLog]);
+    return (logRef.current[key] || []).slice().reverse();
+  }, []);
 
   const getWeeklyVolume = useCallback((): Record<string, number> => {
     const volume: Record<string, number> = {};
@@ -106,9 +148,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     const weekStart = monday.toISOString().split('T')[0];
     const weekEnd = today.toISOString().split('T')[0];
 
-    Object.entries(workoutLog).forEach(([key, sessions]) => {
-      const [dayId, exIdxStr] = key.split('_');
-      const exIdx = parseInt(exIdxStr);
+    Object.entries(logRef.current).forEach(([key, sessions]) => {
+      const parts = key.split('_');
+      const dayId = parts[0];
+      const exIdx = parseInt(parts[1]);
       const day = DAYS.find(d => d.id === dayId);
       if (!day || !day.exercises) return;
       const ex = day.exercises[exIdx];
@@ -132,8 +175,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       completedWorkouts,
       isDeloadWeek,
       setIsDeloadWeek,
-      logSession,
+      logWorkout,
       deleteSession,
+      updateSession,
+      clearAllData,
       markCompleted,
       getPrevSessions,
       getWeeklyVolume,
