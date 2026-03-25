@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --surface3: #272727;
+    --border: #2a2a2a;
+    --border2: #333;
+    --text: #f0ede8;
+    --text2: #888;
+    --text3: #555;
+    --accent: #e8ff47;
+    --accent-dim: #c8df2a;
+    --red: #ff5252;
+    --green: #4cff91;
+    --blue: #52b8ff;
+    --orange: #ff9f52;
+    --purple: #c084fc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* SCREENS */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* HOME */
+  #home { padding: 0; }
+  .home-header { padding: 2rem 1.5rem 1rem; }
+  .home-header .logo { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 2px; color: var(--text); line-height: 1; }
+  .home-header .subtitle { font-size: 0.78rem; color: var(--text3); letter-spacing: 3px; text-transform: uppercase; margin-top: 2px; }
+  .week-strip { display: flex; gap: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .week-day { flex: 1; min-width: 60px; padding: 1rem 0.5rem; text-align: center; cursor: pointer; border-right: 1px solid var(--border); transition: background 0.15s; position: relative; }
+  .week-day:last-child { border-right: none; }
+  .week-day:hover { background: var(--surface2); }
+  .week-day.today { background: var(--surface2); }
+  .week-day.today::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 2px; background: var(--accent); }
+  .week-day .day-name { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+  .week-day .day-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--text2); letter-spacing: 1px; }
+  .week-day.active-day .day-label { color: var(--accent); }
+  .week-day .done-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); margin: 4px auto 0; }
+
+  .day-cards { padding: 1rem 1.2rem; flex: 1; }
+  .day-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.2rem; margin-bottom: 0.8rem; cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden; }
+  .day-card:hover { border-color: var(--border2); background: var(--surface2); }
+  .day-card.rest { opacity: 0.5; cursor: default; }
+  .day-card .card-tag { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+  .day-card .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1.5px; color: var(--text); line-height: 1; margin-bottom: 6px; }
+  .day-card .card-meta { font-size: 0.72rem; color: var(--text2); display: flex; gap: 12px; align-items: center; }
+  .day-card .card-accent { position: absolute; right: 0; top: 0; bottom: 0; width: 3px; }
+  .day-card .card-exercises-preview { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .ex-chip { font-size: 0.65rem; background: var(--surface3); padding: 3px 8px; border-radius: 20px; color: var(--text3); }
+  .day-card.completed .card-title { color: var(--text2); }
+  .day-card .completed-badge { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 0.6rem; background: rgba(76,255,145,0.1); color: var(--green); padding: 3px 8px; border-radius: 20px; letter-spacing: 1px; }
+
+  /* WORKOUT */
+  #workout { background: var(--bg); }
+  .workout-header { padding: 1rem 1.2rem 0.8rem; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .back-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border2); background: none; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+  .back-btn:hover { background: var(--surface2); }
+  .workout-header .wh-info { flex: 1; }
+  .workout-header .wh-tag { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text3); }
+  .workout-header .wh-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 1.5px; color: var(--text); line-height: 1.1; }
+  .finish-btn { padding: 8px 16px; background: var(--accent); color: #000; font-size: 0.75rem; font-weight: 600; font-family: 'DM Sans', sans-serif; letter-spacing: 1px; text-transform: uppercase; border: none; border-radius: 8px; cursor: pointer; }
+  .finish-btn:hover { background: var(--accent-dim); }
+
+  .workout-body { flex: 1; overflow-y: auto; padding: 0.8rem 1.2rem 6rem; }
+
+  .protocol-banner { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 1rem; }
+  .protocol-banner .pb-label { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+  .protocol-banner .pb-text { font-size: 0.8rem; color: var(--text2); line-height: 1.5; }
+
+  .ex-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; }
+  .ex-card.failure-mode { border-color: rgba(255,82,82,0.3); }
+  .ex-card.rir-mode { border-color: rgba(82,184,255,0.2); }
+  .ex-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .ex-name { font-weight: 600; font-size: 0.9rem; color: var(--text); line-height: 1.2; flex: 1; }
+  .ex-badge { font-size: 0.58rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; white-space: nowrap; margin-left: 8px; margin-top: 2px; }
+  .badge-failure { background: rgba(255,82,82,0.12); color: var(--red); }
+  .badge-rir { background: rgba(82,184,255,0.12); color: var(--blue); }
+  .ex-target { font-size: 0.72rem; color: var(--text3); margin-bottom: 10px; }
+  .ex-tip { font-size: 0.7rem; color: var(--text3); background: var(--surface3); border-radius: 8px; padding: 7px 10px; margin-bottom: 10px; line-height: 1.5; border-left: 2px solid var(--border2); }
+
+  .sets-header { display: grid; grid-template-columns: 24px 1fr 1fr 80px; gap: 6px; padding: 0 4px; margin-bottom: 5px; }
+  .sets-header span { font-size: 0.58rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); }
+  .set-row { display: grid; grid-template-columns: 24px 1fr 1fr 80px; gap: 6px; align-items: center; padding: 5px 4px; border-radius: 6px; margin-bottom: 3px; }
+  .set-row.completed-set { background: rgba(76,255,145,0.05); }
+  .set-num { font-size: 0.75rem; color: var(--text3); text-align: center; }
+  .set-input { background: var(--surface3); border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px; font-size: 0.85rem; font-family: 'DM Sans', sans-serif; color: var(--text); width: 100%; text-align: center; outline: none; }
+  .set-input:focus { border-color: var(--accent); }
+  .set-input.prev-val { color: var(--text3); border-style: dashed; }
+  .complete-set-btn { background: var(--surface3); border: 1px solid var(--border); border-radius: 6px; padding: 7px; color: var(--text3); cursor: pointer; font-size: 0.75rem; font-family: 'DM Sans', sans-serif; width: 100%; transition: all 0.15s; }
+  .complete-set-btn:hover { border-color: var(--green); color: var(--green); }
+  .complete-set-btn.done { background: rgba(76,255,145,0.1); border-color: rgba(76,255,145,0.3); color: var(--green); }
+
+  .overload-signal { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; background: rgba(232,255,71,0.06); border: 1px solid rgba(232,255,71,0.2); border-radius: 8px; }
+  .overload-signal .os-icon { font-size: 0.9rem; }
+  .overload-signal .os-text { font-size: 0.72rem; color: var(--accent); }
+
+  .rest-timer-float { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border2); border-radius: 16px; padding: 0.8rem 1.5rem; display: flex; align-items: center; gap: 14px; z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.6); min-width: 220px; }
+  .rest-timer-float.hidden { display: none; }
+  .rt-label { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); }
+  .rt-time { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--accent); letter-spacing: 2px; line-height: 1; }
+  .rt-time.warning { color: var(--orange); }
+  .rt-time.done-time { color: var(--green); }
+  .rt-btns { display: flex; gap: 6px; margin-left: auto; }
+  .rt-btn { background: var(--surface3); border: 1px solid var(--border2); border-radius: 8px; padding: 6px 10px; color: var(--text2); font-size: 0.7rem; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .rt-btn:hover { color: var(--text); border-color: var(--text3); }
+  .rt-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+
+  /* HISTORY / PROGRESS */
+  #progress { padding: 0; }
+  .prog-header { padding: 1.5rem 1.2rem 0.8rem; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+  .prog-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 2px; flex: 1; }
+  .prog-body { flex: 1; overflow-y: auto; padding: 0.8rem 1.2rem 4rem; }
+
+  .ex-select-wrap { margin-bottom: 1rem; }
+  .ex-select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; width: 100%; outline: none; }
+  .ex-select:focus { border-color: var(--accent); }
+
+  .prog-chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+  .prog-chart-title { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+  .chart-canvas-wrap { position: relative; height: 160px; }
+
+  .recent-sessions { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .rs-header { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); }
+  .session-row { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .session-row:last-child { border-bottom: none; }
+  .session-date { font-size: 0.75rem; color: var(--text2); }
+  .session-best { font-size: 0.8rem; font-weight: 500; color: var(--text); }
+  .session-note { font-size: 0.65rem; color: var(--green); }
+
+  /* NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 50; }
+  .nav-item { flex: 1; padding: 0.9rem 0.5rem 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: color 0.15s; color: var(--text3); border: none; background: none; font-family: 'DM Sans', sans-serif; }
+  .nav-item:hover { color: var(--text2); }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .nav-icon { font-size: 1.1rem; line-height: 1; }
+  .nav-item .nav-label { font-size: 0.58rem; letter-spacing: 2px; text-transform: uppercase; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 400px; }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .modal-sub { font-size: 0.78rem; color: var(--text2); margin-bottom: 1.2rem; line-height: 1.5; }
+  .modal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.2rem; }
+  .modal-stat { background: var(--surface3); border-radius: 10px; padding: 0.8rem; }
+  .modal-stat .ms-label { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+  .modal-stat .ms-val { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; color: var(--text); }
+  .modal-stat .ms-unit { font-size: 0.75rem; color: var(--text2); margin-left: 4px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-btn { flex: 1; padding: 12px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+  .modal-btn.secondary { background: none; border: 1px solid var(--border2); color: var(--text2); }
+  .modal-btn.primary { background: var(--accent); border: none; color: #000; }
+  .modal-btn:hover { opacity: 0.85; }
+
+  /* CHART */
+  canvas { display: block; }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text3); }
+  .empty-state .es-icon { font-size: 2rem; margin-bottom: 0.8rem; }
+  .empty-state .es-title { font-size: 0.85rem; color: var(--text2); margin-bottom: 4px; }
+  .empty-state .es-sub { font-size: 0.75rem; }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div id="home" class="screen active">
+  <div class="home-header">
+    <div class="logo">TRAINING LOG</div>
+    <div class="subtitle">Progressive Overload Tracker</div>
+  </div>
+
+  <div class="week-strip" id="weekStrip"></div>
+
+  <div class="day-cards" id="dayCards"></div>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="showScreen('home')">
+      <span class="nav-icon">⚡</span>
+      <span class="nav-label">Today</span>
+    </button>
+    <button class="nav-item" onclick="showScreen('progress')">
+      <span class="nav-icon">📈</span>
+      <span class="nav-label">Progress</span>
+    </button>
+  </nav>
+</div>
+
+<!-- WORKOUT SCREEN -->
+<div id="workout" class="screen">
+  <div class="workout-header">
+    <button class="back-btn" onclick="showScreen('home')">←</button>
+    <div class="wh-info">
+      <div class="wh-tag" id="wh-tag">Monday</div>
+      <div class="wh-title" id="wh-title">Push A</div>
+    </div>
+    <button class="finish-btn" onclick="finishWorkout()">Finish</button>
+  </div>
+
+  <div class="workout-body" id="workoutBody"></div>
+
+  <div class="rest-timer-float hidden" id="restTimer">
+    <div>
+      <div class="rt-label">Rest</div>
+      <div class="rt-time" id="rtDisplay">2:00</div>
+    </div>
+    <div class="rt-btns">
+      <button class="rt-btn" onclick="addRestTime(-30)">-30s</button>
+      <button class="rt-btn" onclick="addRestTime(30)">+30s</button>
+      <button class="rt-btn primary" onclick="stopRestTimer()">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS SCREEN -->
+<div id="progress" class="screen">
+  <div class="prog-header">
+    <button class="back-btn" onclick="showScreen('home')">←</button>
+    <div class="prog-title">Progress</div>
+  </div>
+  <div class="prog-body" id="progressBody"></div>
+  <nav class="bottom-nav">
+    <button class="nav-item" onclick="showScreen('home')">
+      <span class="nav-icon">⚡</span>
+      <span class="nav-label">Today</span>
+    </button>
+    <button class="nav-item active" onclick="showScreen('progress')">
+      <span class="nav-icon">📈</span>
+      <span class="nav-label">Progress</span>
+    </button>
+  </nav>
+</div>
+
+<!-- FINISH MODAL -->
+<div class="modal-overlay hidden" id="finishModal">
+  <div class="modal">
+    <div class="modal-title">Workout Done</div>
+    <div class="modal-sub" id="finishSub">Great session. Here's your summary.</div>
+    <div class="modal-stats" id="finishStats"></div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeModal()">Keep editing</button>
+      <button class="modal-btn primary" onclick="confirmFinish()">Save & Exit</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const DAYS = [
+  {
+    id: 'monday', name: 'Monday', label: 'MON', session: 'Push A',
+    color: '#e8ff47', tag: 'Shoulders & Upper Chest',
+    protocol: 'Heavy day. Focus on slow eccentrics and full ROM. This is your primary shoulder mass session.',
+    exercises: [
+      { name: 'Seated DB Shoulder Press', sets: 4, repRange: [8,10], rest: 120, failure: false, note: 'Seated removes leg drive — delts do all the work. Full ROM, slow eccentric. Your primary mass builder.' },
+      { name: 'Cable Lateral Raises', sets: 4, repRange: [15,20], rest: 60, failure: true, note: 'Slight forward lean, thumb-down. Keep tension constant. Stop just at or slightly below parallel — above that recruits traps.' },
+      { name: 'Incline Barbell Press @ 30°', sets: 4, repRange: [8,10], rest: 120, failure: false, note: 'Keep elbows at 45° to your body, not flared. Full stretch at the bottom. 30° is the sweet spot for upper chest activation.' },
+      { name: 'Cable Fly (Low to High, Incline)', sets: 3, repRange: [12,15], rest: 60, failure: true, note: 'Low pulley on incline bench. Constant tension through entire arc — something dumbbells can\'t do. One of the best upper chest isolation movements.' },
+      { name: 'Dumbbell Lateral Raises', sets: 3, repRange: [15,20], rest: 60, failure: true, note: 'Thumbs down, raise to just at or slightly below parallel. Complements the cable variation from earlier.' },
+      { name: 'Wrist Curls — Barbell', sets: 3, repRange: [15,20], rest: 45, failure: false, note: 'Forearms on thighs, full stretch at bottom. Best exercise for forearm flexor mass. Forearms are pre-warmed from pressing.' },
+    ]
+  },
+  {
+    id: 'tuesday', name: 'Tuesday', label: 'TUE', session: 'Pull A',
+    color: '#52b8ff', tag: 'Back, Forearms & Biceps',
+    protocol: 'Back width focus. Keep reps controlled and feel the stretch. Forearms get first weekly dedicated session.',
+    exercises: [
+      { name: 'Weighted Pull-Ups / Lat Pulldown', sets: 4, repRange: [8,10], rest: 120, failure: false, note: 'Full ROM — start from dead hang. Drive elbows toward hips, not shoulders to ears. Foundation of back width.' },
+      { name: 'Seated Cable Row', sets: 4, repRange: [10,12], rest: 90, failure: false, note: '1-second pause at the contraction. Mid and lower trap development. Control the return.' },
+      { name: 'Hammer Curls', sets: 4, repRange: [12,15], rest: 60, failure: false, note: 'Neutral grip = maximum brachioradialis activation. Single best exercise for visible forearm mass near the elbow. Heavy and controlled.' },
+      { name: 'Reverse Curls — EZ Bar', sets: 3, repRange: [12,15], rest: 60, failure: false, note: 'Pronated grip shifts load entirely to brachioradialis and forearm extensors. Do these while forearms are pumped.' },
+      { name: 'Reverse Wrist Curls — Dumbbell', sets: 3, repRange: [15,20], rest: 45, failure: false, note: 'Forearms on thighs, palms facing down. Wrist extensors for balanced development and injury prevention.' },
+      { name: 'Face Pulls', sets: 3, repRange: [15,20], rest: 60, failure: false, note: 'Rear delt and rotator cuff health. Critical for shoulder longevity given the pressing volume. Never skip these.' },
+    ]
+  },
+  {
+    id: 'wednesday', name: 'Wednesday', label: 'WED', session: 'Legs & Calves',
+    color: '#4cff91', tag: 'Quads, Hams & Calves',
+    protocol: 'Calves are the priority here. Pause 1-2 seconds at the bottom of every calf rep — that lengthened position is where growth happens.',
+    exercises: [
+      { name: 'Hack Squat / Leg Press', sets: 4, repRange: [10,12], rest: 120, failure: false, note: 'Full depth. Controlled descent. Primary lower body compound.' },
+      { name: 'Romanian Deadlift', sets: 3, repRange: [10,10], rest: 90, failure: false, note: 'Feel the hamstring stretch at the bottom. Keep back flat. Hinge, don\'t squat.' },
+      { name: 'Leg Extension', sets: 3, repRange: [12,15], rest: 60, failure: false, note: 'Quad isolation. Slow and controlled. Pause at the top.' },
+      { name: 'Standing Calf Raises', sets: 5, repRange: [10,15], rest: 60, failure: true, note: 'PAUSE 1-2 seconds in the deep stretch at the bottom. Research shows 12.4% vs 1.7% gastrocnemius growth vs seated. Add lengthened partials after failure on last 2 sets.' },
+      { name: 'Seated Calf Raises', sets: 3, repRange: [15,20], rest: 45, failure: false, note: 'Soleus development and ankle mobility. Standing work is your primary driver — these supplement it.' },
+    ]
+  },
+  {
+    id: 'thursday', name: 'Thursday', label: 'THU', session: 'Push B',
+    color: '#ff9f52', tag: 'Shoulders & Long Head Triceps',
+    protocol: 'Second shoulder session plus tricep long head focus. Every tricep exercise is overhead position — the research is conclusive for long head growth.',
+    exercises: [
+      { name: 'Overhead Press — Barbell / Smith', sets: 4, repRange: [8,10], rest: 120, failure: false, note: 'Different stimulus vs Monday\'s DB press. Barbell allows heavier loading for overall shoulder mass. Standing or seated.' },
+      { name: 'Cable Lateral Raises', sets: 4, repRange: [15,20], rest: 60, failure: true, note: 'Second weekly lateral delt exposure. Same technique — constant tension, controlled, thumbs down, stop at parallel.' },
+      { name: 'Cable Overhead Tricep Extension', sets: 4, repRange: [10,12], rest: 90, failure: false, note: 'Set cable at the bottom, face away, arms overhead. Full stretch. This is where the long head grows — backed by Maeo et al. research. Do NOT swap for pushdowns.' },
+      { name: 'Skull Crushers — EZ Bar', sets: 3, repRange: [10,12], rest: 90, failure: false, note: 'Lower bar slightly BEHIND your head, not to forehead. Keeps tension on the long head at the bottom. Greater stretch = greater stimulus.' },
+      { name: 'Incline DB Press @ 30-45°', sets: 3, repRange: [10,12], rest: 90, failure: false, note: 'Second weekly upper chest session. Slightly higher rep range to vary the stimulus from Monday.' },
+      { name: 'Wrist Curls — Dumbbell', sets: 3, repRange: [15,20], rest: 45, failure: false, note: 'Second forearm flexor session. Dumbbells allow natural wrist rotation for slight variation.' },
+    ]
+  },
+  {
+    id: 'friday', name: 'Friday', label: 'FRI', session: 'Pull B',
+    color: '#c084fc', tag: 'Forearms & Arms Focus',
+    protocol: 'Forearm anchor day. Behind-the-back wrist curl and hammer curl are your two most important forearm movements. Train hard — forearms respond well to frequency.',
+    exercises: [
+      { name: 'Incline Dumbbell Curl', sets: 3, repRange: [10,12], rest: 60, failure: false, note: 'Lie back on 45° incline, arms hang fully before curling. Shoulder behind body = long bicep head stretched = better development.' },
+      { name: 'Hammer Curls — Heavy', sets: 4, repRange: [10,12], rest: 60, failure: false, note: 'Go heavier than Tuesday. Second brachioradialis session. Most important forearm mass exercise in the program.' },
+      { name: 'Reverse Curls — Cable', sets: 3, repRange: [12,15], rest: 60, failure: false, note: 'Cable version provides constant tension — better stimulus than free weight for this movement.' },
+      { name: 'Cable Overhead Tricep Extension', sets: 3, repRange: [12,15], rest: 90, failure: false, note: 'Second long head session. Slightly lighter and higher rep than Thursday. Same technique.' },
+      { name: 'Wrist Curls — Behind-the-Back Barbell', sets: 3, repRange: [15,20], rest: 45, failure: true, note: 'Stand holding barbell behind back, let it roll to fingertips, curl back up. Finger + wrist flexion = superior hypertrophy through lengthened position. Most underrated forearm exercise.' },
+      { name: 'Reverse Wrist Curls', sets: 3, repRange: [15,20], rest: 45, failure: false, note: 'Extensor balance work. Fast but controlled. Keeps forearm development symmetrical.' },
+    ]
+  },
+  { id: 'saturday', name: 'Saturday', label: 'SAT', session: 'Rest', rest: true, color: '#555', tag: 'Recovery' },
+  { id: 'sunday', name: 'Sunday', label: 'SUN', session: 'Rest', rest: true, color: '#555', tag: 'Recovery' },
+];
+
+let currentDayId = null;
+let restTimerInterval = null;
+let restSecondsLeft = 0;
+let workoutLog = {};
+let completedWorkouts = {};
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem('tl_log');
+    if (saved) workoutLog = JSON.parse(saved);
+    const savedC = localStorage.getItem('tl_completed');
+    if (savedC) completedWorkouts = JSON.parse(savedC);
+  } catch(e) {}
+}
+
+function saveData() {
+  try {
+    localStorage.setItem('tl_log', JSON.stringify(workoutLog));
+    localStorage.setItem('tl_completed', JSON.stringify(completedWorkouts));
+  } catch(e) {}
+}
+
+function getDateKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getTodayDayId() {
+  const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  return days[new Date().getDay()];
+}
+
+function getWeekDates() {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow + 6) % 7));
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'progress') renderProgress();
+}
+
+function renderHome() {
+  const todayId = getTodayDayId();
+  const weekDates = getWeekDates();
+  const strip = document.getElementById('weekStrip');
+  strip.innerHTML = '';
+  DAYS.forEach((day, i) => {
+    const dateKey = weekDates[i].toISOString().split('T')[0];
+    const isToday = day.id === todayId;
+    const isDone = completedWorkouts[dateKey];
+    const div = document.createElement('div');
+    div.className = 'week-day' + (isToday ? ' today' : '') + (day.id === currentDayId ? ' active-day' : '');
+    div.innerHTML = `<div class="day-name">${day.label}</div><div class="day-label">${day.rest ? 'REST' : day.session.split(' ')[0]}</div>${isDone ? '<div class="done-dot"></div>' : ''}`;
+    if (!day.rest) div.onclick = () => openWorkout(day.id);
+    strip.appendChild(div);
+  });
+
+  const container = document.getElementById('dayCards');
+  container.innerHTML = '';
+  const todayIdx = DAYS.findIndex(d => d.id === todayId);
+  const order = [...DAYS.slice(todayIdx), ...DAYS.slice(0, todayIdx)];
+  order.forEach((day, i) => {
+    const dayIdx = DAYS.findIndex(d => d.id === day.id);
+    const dateKey = weekDates[dayIdx].toISOString().split('T')[0];
+    const isDone = completedWorkouts[dateKey];
+    const isToday = day.id === todayId;
+    const card = document.createElement('div');
+    card.className = 'day-card' + (day.rest ? ' rest' : '') + (isDone ? ' completed' : '');
+    const chips = day.exercises ? day.exercises.slice(0,4).map(e => `<span class="ex-chip">${e.name.split(' ').slice(0,2).join(' ')}</span>`).join('') + (day.exercises.length > 4 ? `<span class="ex-chip">+${day.exercises.length-4}</span>` : '') : '';
+    card.innerHTML = `
+      <div class="card-accent" style="background:${day.color}"></div>
+      <div class="card-tag">${isToday ? '⚡ Today' : day.name}</div>
+      <div class="card-title">${day.session}</div>
+      <div class="card-meta">
+        <span style="color:${day.color}">${day.tag}</span>
+        ${day.exercises ? `<span>${day.exercises.length} exercises</span>` : ''}
+      </div>
+      ${chips ? `<div class="card-exercises-preview">${chips}</div>` : ''}
+      ${isDone ? '<div class="completed-badge">✓ Done</div>' : ''}
+    `;
+    if (!day.rest) card.onclick = () => openWorkout(day.id);
+    container.appendChild(card);
+  });
+}
+
+function openWorkout(dayId) {
+  const day = DAYS.find(d => d.id === dayId);
+  if (!day || day.rest) return;
+  currentDayId = dayId;
+  document.getElementById('wh-tag').textContent = day.name;
+  document.getElementById('wh-title').textContent = day.session;
+
+  const body = document.getElementById('workoutBody');
+  body.innerHTML = '';
+
+  const banner = document.createElement('div');
+  banner.className = 'protocol-banner';
+  banner.innerHTML = `<div class="pb-label">Protocol Notes</div><div class="pb-text">${day.protocol}</div>`;
+  body.appendChild(banner);
+
+  day.exercises.forEach((ex, exIdx) => {
+    const key = `${dayId}_${exIdx}`;
+    const prevSessions = getPrevSessions(dayId, exIdx);
+    const lastSession = prevSessions[0];
+    const shouldOverload = lastSession && checkOverload(lastSession, ex);
+
+    const card = document.createElement('div');
+    card.className = 'ex-card' + (ex.failure ? ' failure-mode' : ' rir-mode');
+    card.id = `ex-card-${exIdx}`;
+
+    let setsHtml = `<div class="sets-header"><span>#</span><span>Weight</span><span>Reps</span><span></span></div>`;
+    for (let s = 0; s < ex.sets; s++) {
+      const prevWeight = lastSession ? lastSession.sets[s]?.weight || '' : '';
+      const prevReps = lastSession ? lastSession.sets[s]?.reps || '' : '';
+      const suggestedWeight = shouldOverload && prevWeight ? (parseFloat(prevWeight) + (prevWeight >= 45 ? 5 : 2.5)).toFixed(1).replace('.0','') : prevWeight;
+      setsHtml += `
+        <div class="set-row" id="set-${exIdx}-${s}">
+          <div class="set-num">${s+1}</div>
+          <input type="number" step="0.5" class="set-input" id="w-${exIdx}-${s}" placeholder="${suggestedWeight || 'lbs'}" value="" />
+          <input type="number" class="set-input" id="r-${exIdx}-${s}" placeholder="${prevReps || ex.repRange[0]+'-'+ex.repRange[1]}" value="" />
+          <button class="complete-set-btn" id="csb-${exIdx}-${s}" onclick="completeSet(${exIdx},${s},${ex.rest})">Log</button>
+        </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="ex-header">
+        <div class="ex-name">${ex.name}</div>
+        <div class="ex-badge ${ex.failure ? 'badge-failure' : 'badge-rir'}">${ex.failure ? 'To Failure' : '1-2 RIR'}</div>
+      </div>
+      <div class="ex-target">${ex.sets} sets · ${ex.repRange[0]}${ex.repRange[1] !== ex.repRange[0] ? '–'+ex.repRange[1] : ''} reps · ${ex.rest}s rest</div>
+      <div class="ex-tip">${ex.note}</div>
+      ${setsHtml}
+      ${shouldOverload ? `<div class="overload-signal"><div class="os-icon">↑</div><div class="os-text">You hit all reps last session — add weight today</div></div>` : ''}
+    `;
+    body.appendChild(card);
+  });
+
+  showScreen('workout');
+}
+
+function getPrevSessions(dayId, exIdx) {
+  const key = `${dayId}_${exIdx}`;
+  return (workoutLog[key] || []).slice().reverse();
+}
+
+function checkOverload(lastSession, ex) {
+  if (!lastSession || !lastSession.sets) return false;
+  return lastSession.sets.every(s => s.reps >= ex.repRange[1]);
+}
+
+function completeSet(exIdx, setIdx, restSecs) {
+  const wInput = document.getElementById(`w-${exIdx}-${setIdx}`);
+  const rInput = document.getElementById(`r-${exIdx}-${setIdx}`);
+  const btn = document.getElementById(`csb-${exIdx}-${setIdx}`);
+  const row = document.getElementById(`set-${exIdx}-${setIdx}`);
+
+  if (!wInput.value && !rInput.value) {
+    wInput.style.borderColor = 'var(--red)';
+    setTimeout(() => wInput.style.borderColor = '', 800);
+    return;
+  }
+
+  btn.classList.add('done');
+  btn.textContent = '✓';
+  row.classList.add('completed-set');
+  startRestTimer(restSecs);
+}
+
+function startRestTimer(seconds) {
+  if (restTimerInterval) clearInterval(restTimerInterval);
+  restSecondsLeft = seconds;
+  const el = document.getElementById('restTimer');
+  el.classList.remove('hidden');
+  updateRestDisplay();
+  restTimerInterval = setInterval(() => {
+    restSecondsLeft--;
+    if (restSecondsLeft <= 0) {
+      clearInterval(restTimerInterval);
+      document.getElementById('rtDisplay').textContent = 'Go!';
+      document.getElementById('rtDisplay').className = 'rt-time done-time';
+      setTimeout(() => el.classList.add('hidden'), 2000);
+    } else {
+      updateRestDisplay();
+    }
+  }, 1000);
+}
+
+function updateRestDisplay() {
+  const el = document.getElementById('rtDisplay');
+  const m = Math.floor(restSecondsLeft / 60);
+  const s = restSecondsLeft % 60;
+  el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  el.className = 'rt-time' + (restSecondsLeft <= 15 ? ' warning' : '');
+}
+
+function addRestTime(delta) {
+  restSecondsLeft = Math.max(0, restSecondsLeft + delta);
+  updateRestDisplay();
+}
+
+function stopRestTimer() {
+  if (restTimerInterval) clearInterval(restTimerInterval);
+  document.getElementById('restTimer').classList.add('hidden');
+}
+
+function finishWorkout() {
+  const day = DAYS.find(d => d.id === currentDayId);
+  let totalSets = 0, totalWeight = 0, exCount = 0;
+  day.exercises.forEach((ex, exIdx) => {
+    for (let s = 0; s < ex.sets; s++) {
+      const w = document.getElementById(`w-${exIdx}-${s}`)?.value;
+      const r = document.getElementById(`r-${exIdx}-${s}`)?.value;
+      if (w || r) { totalSets++; totalWeight += (parseFloat(w)||0) * (parseInt(r)||0); }
+    }
+    const w0 = document.getElementById(`w-${exIdx}-0`)?.value;
+    if (w0) exCount++;
+  });
+  document.getElementById('finishSub').textContent = `${day.session} — ${day.tag}`;
+  document.getElementById('finishStats').innerHTML = `
+    <div class="modal-stat"><div class="ms-label">Sets Logged</div><div class="ms-val">${totalSets}</div></div>
+    <div class="modal-stat"><div class="ms-label">Exercises</div><div class="ms-val">${exCount}</div></div>
+    <div class="modal-stat"><div class="ms-label">Total Volume</div><div class="ms-val">${Math.round(totalWeight).toLocaleString()}<span class="ms-unit">lbs</span></div></div>
+    <div class="modal-stat"><div class="ms-label">Day</div><div class="ms-val">${day.name.slice(0,3).toUpperCase()}</div></div>
+  `;
+  document.getElementById('finishModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('finishModal').classList.add('hidden');
+}
+
+function confirmFinish() {
+  const day = DAYS.find(d => d.id === currentDayId);
+  const dateKey = getDateKey();
+  completedWorkouts[dateKey] = currentDayId;
+
+  day.exercises.forEach((ex, exIdx) => {
+    const key = `${currentDayId}_${exIdx}`;
+    const sets = [];
+    for (let s = 0; s < ex.sets; s++) {
+      const w = document.getElementById(`w-${exIdx}-${s}`)?.value;
+      const r = document.getElementById(`r-${exIdx}-${s}`)?.value;
+      if (w || r) sets.push({ weight: parseFloat(w)||0, reps: parseInt(r)||0 });
+    }
+    if (sets.length) {
+      if (!workoutLog[key]) workoutLog[key] = [];
+      workoutLog[key].push({ date: dateKey, sets });
+    }
+  });
+
+  saveData();
+  closeModal();
+  stopRestTimer();
+  showScreen('home');
+  renderHome();
+}
+
+function renderProgress() {
+  const body = document.getElementById('progressBody');
+  const allExercises = DAYS.flatMap(d => d.exercises || []).reduce((acc, ex) => {
+    if (!acc.find(e => e.name === ex.name)) acc.push(ex);
+    return acc;
+  }, []);
+
+  const loggedKeys = Object.keys(workoutLog).filter(k => workoutLog[k].length > 0);
+  if (loggedKeys.length === 0) {
+    body.innerHTML = `<div class="empty-state"><div class="es-icon">📊</div><div class="es-title">No data yet</div><div class="es-sub">Log your first workout to see progress</div></div>`;
+    return;
+  }
+
+  const exWithData = allExercises.filter(ex => {
+    const dayId = DAYS.find(d => d.exercises && d.exercises.includes(ex))?.id;
+    if (!dayId) return false;
+    const exIdx = DAYS.find(d => d.id === dayId)?.exercises.indexOf(ex);
+    const key = `${dayId}_${exIdx}`;
+    return workoutLog[key] && workoutLog[key].length > 0;
+  });
+
+  const select = document.createElement('select');
+  select.className = 'ex-select';
+  select.innerHTML = exWithData.map(ex => `<option value="${ex.name}">${ex.name}</option>`).join('');
+
+  body.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'ex-select-wrap';
+  wrap.appendChild(select);
+  body.appendChild(wrap);
+
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'prog-chart-wrap';
+  chartWrap.innerHTML = `<div class="prog-chart-title">Max Weight Over Time</div><div class="chart-canvas-wrap"><canvas id="progChart"></canvas></div>`;
+  body.appendChild(chartWrap);
+
+  const recentWrap = document.createElement('div');
+  recentWrap.className = 'recent-sessions';
+  recentWrap.innerHTML = `<div class="rs-header">Recent Sessions</div><div id="sessionRows"></div>`;
+  body.appendChild(recentWrap);
+
+  let chartInstance = null;
+
+  function renderForEx(exName) {
+    const ex = allExercises.find(e => e.name === exName);
+    const dayId = DAYS.find(d => d.exercises && d.exercises.find(e => e.name === exName))?.id;
+    const day = DAYS.find(d => d.id === dayId);
+    const exIdx = day?.exercises.findIndex(e => e.name === exName);
+    const key = `${dayId}_${exIdx}`;
+    const sessions = workoutLog[key] || [];
+
+    const labels = sessions.map(s => s.date);
+    const weights = sessions.map(s => Math.max(...s.sets.map(st => st.weight)));
+
+    if (chartInstance) chartInstance.destroy();
+    const ctx = document.getElementById('progChart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: weights,
+          borderColor: day?.color || '#e8ff47',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointBackgroundColor: day?.color || '#e8ff47',
+          pointRadius: 5,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#555', font: { size: 10 } }, grid: { color: '#1e1e1e' } },
+          y: { ticks: { color: '#555', font: { size: 10 } }, grid: { color: '#1e1e1e' }, beginAtZero: false }
+        }
+      }
+    });
+
+    const rowsEl = document.getElementById('sessionRows');
+    rowsEl.innerHTML = sessions.slice().reverse().slice(0,6).map(s => {
+      const best = Math.max(...s.sets.map(st => st.weight));
+      const topSet = s.sets.find(st => st.weight === best);
+      return `<div class="session-row"><div><div class="session-date">${s.date}</div></div><div style="text-align:right"><div class="session-best">${best} lbs × ${topSet?.reps} reps</div><div class="session-note">${s.sets.length} sets logged</div></div></div>`;
+    }).join('');
+    if (!sessions.length) rowsEl.innerHTML = '<div style="padding:1rem;font-size:0.8rem;color:var(--text3)">No sessions yet</div>';
+  }
+
+  renderForEx(exWithData[0]?.name);
+  select.onchange = e => renderForEx(e.target.value);
+}
+
+loadData();
+renderHome();
+</script>
+</body>
+</html>
