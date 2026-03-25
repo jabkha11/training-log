@@ -263,10 +263,10 @@ export default function WorkoutScreen() {
 
               {/* Sets */}
               <View style={styles.setsHeader}>
-                <Text style={[styles.setHeaderText, { width: 24 }]}>#</Text>
+                <Text style={styles.setHeaderNum}>#</Text>
                 <Text style={[styles.setHeaderText, { flex: 1 }]}>Weight</Text>
                 <Text style={[styles.setHeaderText, { flex: 1 }]}>Reps</Text>
-                <View style={{ width: 72 }} />
+                <View style={styles.logBtnSpacer} />
               </View>
 
               {sets[exIdx].map((set, setIdx) => {
@@ -481,12 +481,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   protocolBanner: {
-    margin: 14,
+    marginHorizontal: 12,
+    marginVertical: 12,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 10,
-    padding: 14,
+    padding: 12,
   },
   protocolLabel: {
     fontFamily: 'Inter_500Medium',
@@ -506,9 +507,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    margin: 14,
-    marginTop: 0,
-    padding: 14,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    padding: 12,
     gap: 8,
   },
   exCardFailure: {
@@ -573,8 +574,17 @@ const styles = StyleSheet.create({
   setsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    gap: 6,
+    gap: 4,
+    paddingBottom: 2,
+  },
+  setHeaderNum: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 9,
+    color: Colors.text3,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    width: 20,
+    textAlign: 'center',
   },
   setHeaderText: {
     fontFamily: 'Inter_500Medium',
@@ -583,12 +593,14 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  logBtnSpacer: {
+    width: 52,
+  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
+    gap: 4,
+    paddingVertical: 3,
     borderRadius: 8,
   },
   setRowDone: {
@@ -598,7 +610,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
     color: Colors.text3,
-    width: 24,
+    width: 20,
     textAlign: 'center',
   },
   setInput: {
@@ -607,22 +619,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 6,
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
     color: Colors.text,
     textAlign: 'center',
+    minWidth: 0,
   },
   setInputPlaceholder: {
     borderStyle: 'dashed',
   },
   logBtn: {
-    width: 72,
+    width: 52,
     backgroundColor: Colors.surface3,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 6,
-    padding: 8,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
