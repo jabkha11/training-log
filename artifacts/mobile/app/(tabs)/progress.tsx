@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Platform,
   useWindowDimensions,
-  Alert,
   TextInput,
   Modal,
   KeyboardAvoidingView,
@@ -26,6 +25,7 @@ import Svg, {
 import { Colors } from '@/constants/colors';
 import { DAYS } from '@/constants/workoutData';
 import { useWorkout } from '@/context/WorkoutContext';
+import { confirmAlert, showAlert } from '@/lib/alerts';
 import type { SessionLog, SetLog } from '@/context/WorkoutContext';
 
 type ExerciseEntry = {
@@ -40,11 +40,27 @@ type ExerciseEntry = {
   note: string;
 };
 
-const exercises: ExerciseEntry[] = DAYS.flatMap(d => {
+type ExerciseGroup = {
+  name: string;
+  variants: ExerciseEntry[];
+};
+
+type SessionRecord = SessionLog & {
+  exerciseKey: string;
+  dayId: string;
+  exIdx: number;
+};
+
+const exerciseGroups: ExerciseGroup[] = DAYS.flatMap(d => {
   if (!d.exercises) return [] as ExerciseEntry[];
   return d.exercises.map((ex, idx) => ({ ...ex, dayId: d.id, exIdx: idx }));
-}).reduce<ExerciseEntry[]>((acc, ex) => {
-  if (!acc.find(e => e.name === ex.name)) acc.push(ex);
+}).reduce<ExerciseGroup[]>((acc, ex) => {
+  const existing = acc.find(group => group.name === ex.name);
+  if (existing) {
+    existing.variants.push(ex);
+    return acc;
+  }
+  acc.push({ name: ex.name, variants: [ex] });
   return acc;
 }, []);
 
@@ -217,12 +233,10 @@ type EditState = { weight: string; reps: string }[];
 function EditModal({
   session,
   exName,
-  exerciseKey,
   onClose,
 }: {
-  session: SessionLog;
+  session: SessionRecord;
   exName: string;
-  exerciseKey: string;
   onClose: () => void;
 }) {
   const { updateSession } = useWorkout();
@@ -247,10 +261,10 @@ function EditModal({
       .map(s => ({ weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps) || 0 }))
       .filter(s => s.weight > 0 || s.reps > 0);
     if (newSets.length === 0) {
-      Alert.alert('No sets', 'Add at least one set with data before saving.');
+      showAlert('No sets', 'Add at least one set with data before saving.');
       return;
     }
-    updateSession(exerciseKey, session.id, newSets);
+    updateSession(session.exerciseKey, session.id, newSets);
     onClose();
   };
 
@@ -478,27 +492,43 @@ export default function ProgressScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [chartMode, setChartMode] = useState<ChartMode>('weight');
   const [showAll, setShowAll] = useState(false);
-  const [editingSession, setEditingSession] = useState<SessionLog | null>(null);
+  const [editingSession, setEditingSession] = useState<SessionRecord | null>(null);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const chartWidth = screenWidth - 32;
 
   const exercisesWithData = useMemo(() => {
-    return exercises.filter(ex => {
-      const key = `${ex.dayId}_${ex.exIdx}`;
-      return workoutLog[key] && workoutLog[key].length > 0;
+    return exerciseGroups.filter(group => {
+      return group.variants.some(ex => {
+        const key = `${ex.dayId}_${ex.exIdx}`;
+        return workoutLog[key] && workoutLog[key].length > 0;
+      });
     });
   }, [workoutLog]);
 
   const clampedEx = Math.min(selectedEx, Math.max(0, exercisesWithData.length - 1));
   const currentEx = exercisesWithData[clampedEx];
-  const currentKey = currentEx ? `${currentEx.dayId}_${currentEx.exIdx}` : '';
+
+  const currentSessions = useMemo((): SessionRecord[] => {
+    if (!currentEx) return [];
+
+    return currentEx.variants.flatMap(ex => {
+      const key = `${ex.dayId}_${ex.exIdx}`;
+      const sessions = workoutLog[key] || [];
+      return sessions.map(session => ({
+        ...session,
+        exerciseKey: key,
+        dayId: ex.dayId,
+        exIdx: ex.exIdx,
+      }));
+    });
+  }, [currentEx, workoutLog]);
 
   const chartData = useMemo(() => {
-    if (!currentEx) return [];
-    const sessions: SessionLog[] = workoutLog[currentKey] || [];
-    return sessions
+    return currentSessions
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date))
       .map(s => {
         const maxWeight = Math.max(...s.sets.map(st => st.weight || 0));
         const maxReps = Math.max(...s.sets.map(st => st.reps || 0));
@@ -507,12 +537,17 @@ export default function ProgressScreen() {
       })
       .filter(d => d.maxWeight > 0)
       .slice(-12);
-  }, [currentEx, currentKey, workoutLog]);
+  }, [currentSessions]);
 
-  const allSessions: SessionLog[] = useMemo(() => {
-    if (!currentEx) return [];
-    return (workoutLog[currentKey] || []).slice().reverse();
-  }, [currentEx, currentKey, workoutLog]);
+  const allSessions: SessionRecord[] = useMemo(() => {
+    return currentSessions
+      .slice()
+      .sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        return b.id.localeCompare(a.id);
+      });
+  }, [currentSessions]);
 
   const visibleSessions = showAll ? allSessions : allSessions.slice(0, 6);
 
@@ -525,28 +560,32 @@ export default function ProgressScreen() {
     return { best, bestE1rm, delta, pct, sessions: chartData.length };
   }, [chartData]);
 
-  const handleDelete = (session: SessionLog) => {
+  const handleDelete = async (session: SessionRecord) => {
     if (!currentEx) return;
-    const key = currentKey;
-    Alert.alert(
-      'Delete Session',
-      `Remove the ${formatDate(session.date)} session? Charts and volume will update immediately.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteSession(key, session.id) },
-      ]
-    );
+
+    const confirmed = await confirmAlert({
+      title: 'Delete Session',
+      message: `Remove the ${formatDate(session.date)} session? Charts and volume will update immediately.`,
+      cancelText: 'Cancel',
+      confirmText: 'Delete',
+      destructive: true,
+    });
+
+    if (!confirmed) return;
+    deleteSession(session.exerciseKey, session.id);
   };
 
-  const handleClearAll = () => {
-    Alert.alert(
-      'Clear All Data',
-      'This will permanently delete every logged session and reset all charts. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear Everything', style: 'destructive', onPress: clearAllData },
-      ]
-    );
+  const handleClearAll = async () => {
+    const confirmed = await confirmAlert({
+      title: 'Clear All Data',
+      message: 'This will permanently delete every logged session and reset all charts. This cannot be undone.',
+      cancelText: 'Cancel',
+      confirmText: 'Clear Everything',
+      destructive: true,
+    });
+
+    if (!confirmed) return;
+    clearAllData();
   };
 
   const modeLabels: { key: ChartMode; label: string }[] = [
@@ -731,7 +770,6 @@ export default function ProgressScreen() {
         <EditModal
           session={editingSession}
           exName={currentEx.name}
-          exerciseKey={currentKey}
           onClose={() => setEditingSession(null)}
         />
       )}
@@ -851,3 +889,6 @@ const styles = StyleSheet.create({
   sessionActions: { flexDirection: 'row', gap: 4 },
   actionBtn: { padding: 6 },
 });
+
+
+

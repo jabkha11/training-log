@@ -8,8 +8,6 @@ import {
   TextInput,
   Modal,
   Platform,
-  Animated,
-  Vibration,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,16 +17,13 @@ import { Colors } from '@/constants/colors';
 import { DAYS } from '@/constants/workoutData';
 import { useWorkout } from '@/context/WorkoutContext';
 import type { SetLog } from '@/context/WorkoutContext';
+import { formatLocalDateKey } from '@/lib/date';
 
 
 interface SetState {
   weight: string;
   reps: string;
   completed: boolean;
-}
-
-function getDateKey() {
-  return new Date().toISOString().split('T')[0];
 }
 
 export default function WorkoutScreen() {
@@ -49,9 +44,6 @@ export default function WorkoutScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [showFinishModal, setShowFinishModal] = useState(false);
-  const [finished, setFinished] = useState(false);
-
-  const timerFlash = useRef(new Animated.Value(1)).current;
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -162,7 +154,7 @@ export default function WorkoutScreen() {
 
   const confirmFinish = useCallback(() => {
     if (!dayId) return;
-    const dateKey = getDateKey();
+    const dateKey = formatLocalDateKey();
 
     const exerciseSets: { exIdx: number; sets: SetLog[] }[] = [];
     for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
@@ -183,7 +175,6 @@ export default function WorkoutScreen() {
 
     markCompleted(dateKey, dayId);
     setShowFinishModal(false);
-    setFinished(true);
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }

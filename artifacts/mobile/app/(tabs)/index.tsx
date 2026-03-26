@@ -14,12 +14,10 @@ import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { DAYS } from '@/constants/workoutData';
 import { useWorkout } from '@/context/WorkoutContext';
+import { formatLocalDateKey, getStartOfLocalWeek } from '@/lib/date';
 
 function getWeekDates() {
-  const today = new Date();
-  const dow = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((dow + 6) % 7));
+  const monday = getStartOfLocalWeek();
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
@@ -77,7 +75,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.weekStripContent}
       >
         {DAYS.map((day, i) => {
-          const dateKey = weekDates[i].toISOString().split('T')[0];
+          const dateKey = formatLocalDateKey(weekDates[i]);
           const isToday = day.id === todayId;
           const isDone = !!completedWorkouts[dateKey];
           const label = day.rest ? 'REST' : day.session.split(' ')[0];
@@ -115,7 +113,7 @@ export default function HomeScreen() {
 
         {orderedDays.map((day) => {
           const dayIdx = DAYS.findIndex(d => d.id === day.id);
-          const dateKey = weekDates[dayIdx].toISOString().split('T')[0];
+          const dateKey = formatLocalDateKey(weekDates[dayIdx]);
           const isDone = !!completedWorkouts[dateKey];
           const isToday = day.id === todayId;
 
