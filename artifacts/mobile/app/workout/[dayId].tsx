@@ -343,10 +343,15 @@ export default function WorkoutScreen() {
     setSets(prev => {
       const next = prev.map(ex => [...ex]);
       next[exIdx] = [...next[exIdx]];
-      next[exIdx][setIdx] = { ...next[exIdx][setIdx], completed: true };
+      const nextCompleted = !next[exIdx][setIdx].completed;
+      next[exIdx][setIdx] = { ...next[exIdx][setIdx], completed: nextCompleted };
       persistDraft(next);
       return next;
     });
+
+    if (set.completed) {
+      return;
+    }
 
     startRest(exercises[exIdx].rest, exercises[exIdx].name);
   }, [sets, exercises, persistDraft, startRest]);
@@ -549,7 +554,6 @@ export default function WorkoutScreen() {
                     <TouchableOpacity
                       style={[styles.logBtn, set.completed && styles.logBtnDone]}
                       onPress={() => completeSet(exIdx, setIdx)}
-                      disabled={set.completed}
                     >
                       {set.completed
                         ? <Feather name="check" size={14} color={Colors.green} />
