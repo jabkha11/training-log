@@ -5,18 +5,29 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  CancelRestTimerNotificationParams,
+  HealthStatus,
+  NotificationSubscriptionUpsertRequest,
+  NotificationSubscriptionUpsertResponse,
+  RestTimerNotificationCancelResponse,
+  RestTimerNotificationScheduleRequest,
+  RestTimerNotificationScheduleResponse,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +110,289 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Stores or updates a web push subscription for the current install.
+ * @summary Upsert notification subscription
+ */
+export const getUpsertNotificationSubscriptionUrl = () => {
+  return `/api/notifications/subscriptions`;
+};
+
+export const upsertNotificationSubscription = async (
+  notificationSubscriptionUpsertRequest: NotificationSubscriptionUpsertRequest,
+  options?: RequestInit,
+): Promise<NotificationSubscriptionUpsertResponse> => {
+  return customFetch<NotificationSubscriptionUpsertResponse>(
+    getUpsertNotificationSubscriptionUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(notificationSubscriptionUpsertRequest),
+    },
+  );
+};
+
+export const getUpsertNotificationSubscriptionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertNotificationSubscription>>,
+    TError,
+    { data: BodyType<NotificationSubscriptionUpsertRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof upsertNotificationSubscription>>,
+  TError,
+  { data: BodyType<NotificationSubscriptionUpsertRequest> },
+  TContext
+> => {
+  const mutationKey = ["upsertNotificationSubscription"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof upsertNotificationSubscription>>,
+    { data: BodyType<NotificationSubscriptionUpsertRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return upsertNotificationSubscription(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpsertNotificationSubscriptionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof upsertNotificationSubscription>>
+>;
+export type UpsertNotificationSubscriptionMutationBody =
+  BodyType<NotificationSubscriptionUpsertRequest>;
+export type UpsertNotificationSubscriptionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Upsert notification subscription
+ */
+export const useUpsertNotificationSubscription = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof upsertNotificationSubscription>>,
+    TError,
+    { data: BodyType<NotificationSubscriptionUpsertRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof upsertNotificationSubscription>>,
+  TError,
+  { data: BodyType<NotificationSubscriptionUpsertRequest> },
+  TContext
+> => {
+  return useMutation(getUpsertNotificationSubscriptionMutationOptions(options));
+};
+
+/**
+ * Creates or replaces a pending end-of-rest notification.
+ * @summary Schedule rest timer notification
+ */
+export const getScheduleRestTimerNotificationUrl = () => {
+  return `/api/notifications/rest-timers`;
+};
+
+export const scheduleRestTimerNotification = async (
+  restTimerNotificationScheduleRequest: RestTimerNotificationScheduleRequest,
+  options?: RequestInit,
+): Promise<RestTimerNotificationScheduleResponse> => {
+  return customFetch<RestTimerNotificationScheduleResponse>(
+    getScheduleRestTimerNotificationUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(restTimerNotificationScheduleRequest),
+    },
+  );
+};
+
+export const getScheduleRestTimerNotificationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scheduleRestTimerNotification>>,
+    TError,
+    { data: BodyType<RestTimerNotificationScheduleRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof scheduleRestTimerNotification>>,
+  TError,
+  { data: BodyType<RestTimerNotificationScheduleRequest> },
+  TContext
+> => {
+  const mutationKey = ["scheduleRestTimerNotification"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof scheduleRestTimerNotification>>,
+    { data: BodyType<RestTimerNotificationScheduleRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return scheduleRestTimerNotification(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ScheduleRestTimerNotificationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof scheduleRestTimerNotification>>
+>;
+export type ScheduleRestTimerNotificationMutationBody =
+  BodyType<RestTimerNotificationScheduleRequest>;
+export type ScheduleRestTimerNotificationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Schedule rest timer notification
+ */
+export const useScheduleRestTimerNotification = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scheduleRestTimerNotification>>,
+    TError,
+    { data: BodyType<RestTimerNotificationScheduleRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof scheduleRestTimerNotification>>,
+  TError,
+  { data: BodyType<RestTimerNotificationScheduleRequest> },
+  TContext
+> => {
+  return useMutation(getScheduleRestTimerNotificationMutationOptions(options));
+};
+
+/**
+ * Cancels a pending timer notification for the current install.
+ * @summary Cancel rest timer notification
+ */
+export const getCancelRestTimerNotificationUrl = (
+  timerId: string,
+  params: CancelRestTimerNotificationParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/notifications/rest-timers/${timerId}?${stringifiedParams}`
+    : `/api/notifications/rest-timers/${timerId}`;
+};
+
+export const cancelRestTimerNotification = async (
+  timerId: string,
+  params: CancelRestTimerNotificationParams,
+  options?: RequestInit,
+): Promise<RestTimerNotificationCancelResponse> => {
+  return customFetch<RestTimerNotificationCancelResponse>(
+    getCancelRestTimerNotificationUrl(timerId, params),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getCancelRestTimerNotificationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelRestTimerNotification>>,
+    TError,
+    { timerId: string; params: CancelRestTimerNotificationParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelRestTimerNotification>>,
+  TError,
+  { timerId: string; params: CancelRestTimerNotificationParams },
+  TContext
+> => {
+  const mutationKey = ["cancelRestTimerNotification"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelRestTimerNotification>>,
+    { timerId: string; params: CancelRestTimerNotificationParams }
+  > = (props) => {
+    const { timerId, params } = props ?? {};
+
+    return cancelRestTimerNotification(timerId, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelRestTimerNotificationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelRestTimerNotification>>
+>;
+
+export type CancelRestTimerNotificationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Cancel rest timer notification
+ */
+export const useCancelRestTimerNotification = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelRestTimerNotification>>,
+    TError,
+    { timerId: string; params: CancelRestTimerNotificationParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelRestTimerNotification>>,
+  TError,
+  { timerId: string; params: CancelRestTimerNotificationParams },
+  TContext
+> => {
+  return useMutation(getCancelRestTimerNotificationMutationOptions(options));
+};

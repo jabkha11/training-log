@@ -18,6 +18,14 @@ import { DAYS } from '@/constants/workoutData';
 import { useWorkout } from '@/context/WorkoutContext';
 import type { DraftSetLog, SetLog } from '@/context/WorkoutContext';
 import { formatLocalDateKey } from '@/lib/date';
+import {
+  cancelRestTimerNotification,
+  enableRestTimerNotifications,
+  getRestTimerNotificationState,
+  registerRestTimerServiceWorker,
+  scheduleRestTimerNotification,
+  type RestTimerNotificationState,
+} from '@/lib/restTimerNotifications';
 
 
 interface SetState {
@@ -79,7 +87,23 @@ export default function WorkoutScreen() {
   const [restSeconds, setRestSeconds] = useState(0);
   const [restRunning, setRestRunning] = useState(false);
   const [restVisible, setRestVisible] = useState(false);
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [notificationState, setNotificationState] = useState<RestTimerNotificationState>(() => (
+    Platform.OS === 'web'
+      ? getRestTimerNotificationState()
+      : {
+          status: 'unsupported',
+          message: '',
+          canEnable: false,
+          enabled: false,
+        }
+  ));
+  const [notificationLoading, setNotificationLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hideRestTimerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeTimerIdRef = useRef<string | null>(null);
+  const activeTimerTitleRef = useRef<string>('');
+  const activeTimerBodyRef = useRef<string>('');
 
   const [showFinishModal, setShowFinishModal] = useState(false);
 
@@ -112,43 +136,195 @@ export default function WorkoutScreen() {
     });
   }, [dayId, saveWorkoutDraft, todayKey]);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    let mounted = true;
+    const syncState = () => {
+      if (mounted) {
+        setNotificationState(getRestTimerNotificationState());
+      }
+    };
+
+    void registerRestTimerServiceWorker();
+    syncState();
+
+    window.addEventListener('focus', syncState);
+    document.addEventListener('visibilitychange', syncState);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('focus', syncState);
+      document.removeEventListener('visibilitychange', syncState);
+    };
+  }, []);
+
+  const scheduleActiveRestNotification = useCallback(async (
+    timerId: string,
+    seconds: number,
+    endsAtMs: number,
+    title: string,
+    body: string,
+  ) => {
+    if (Platform.OS !== 'web' || !dayId || seconds <= 0) return;
+
+    try {
+      await scheduleRestTimerNotification({
+        timerId,
+        dayId,
+        route: `/workout/${encodeURIComponent(dayId)}`,
+        durationSeconds: seconds,
+        scheduledFor: new Date(endsAtMs),
+        title,
+        body,
+      });
+      setNotificationState(getRestTimerNotificationState());
+    } catch {
+      setNotificationState({
+        status: 'error',
+        message: 'Unable to schedule the background rest alert right now.',
+        canEnable: notificationState.canEnable,
+        enabled: notificationState.enabled,
+      });
+    }
+  }, [dayId, notificationState.canEnable, notificationState.enabled]);
+
+  const cancelActiveRestNotification = useCallback(async (clearActiveTimer = true) => {
+    const timerId = activeTimerIdRef.current;
+    if (!timerId) return;
+
+    try {
+      await cancelRestTimerNotification(timerId);
+    } catch {}
+
+    if (clearActiveTimer) {
+      activeTimerIdRef.current = null;
+      activeTimerTitleRef.current = '';
+      activeTimerBodyRef.current = '';
+    }
+  }, []);
+
   // Rest timer
   useEffect(() => {
-    if (restRunning && restSeconds > 0) {
-      timerRef.current = setInterval(() => {
-        setRestSeconds(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current!);
-            setRestRunning(false);
-            if (Platform.OS !== 'web') {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-            setTimeout(() => setRestVisible(false), 2000);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (!restRunning || !restEndsAt) {
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [restRunning]);
 
-  const startRest = useCallback((seconds: number) => {
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((restEndsAt - Date.now()) / 1000));
+      setRestSeconds(remaining);
+
+      if (remaining > 0) return;
+
+      if (timerRef.current) clearInterval(timerRef.current);
+      setRestRunning(false);
+      setRestEndsAt(null);
+      void cancelActiveRestNotification();
+      if (hideRestTimerTimeoutRef.current) clearTimeout(hideRestTimerTimeoutRef.current);
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      hideRestTimerTimeoutRef.current = setTimeout(() => setRestVisible(false), 2000);
+    };
+
+    tick();
+    timerRef.current = setInterval(tick, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [cancelActiveRestNotification, restEndsAt, restRunning]);
+
+  const startRest = useCallback((seconds: number, exerciseName: string) => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (hideRestTimerTimeoutRef.current) clearTimeout(hideRestTimerTimeoutRef.current);
+    void cancelActiveRestNotification(false);
+
+    const endsAtMs = Date.now() + (seconds * 1000);
+    const timerId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const title = `${day?.session ?? 'Workout'} rest complete`;
+    const body = `Time for your next ${exerciseName} set.`;
+
+    activeTimerIdRef.current = timerId;
+    activeTimerTitleRef.current = title;
+    activeTimerBodyRef.current = body;
     setRestSeconds(seconds);
     setRestRunning(true);
     setRestVisible(true);
-  }, []);
+    setRestEndsAt(endsAtMs);
+
+    void scheduleActiveRestNotification(timerId, seconds, endsAtMs, title, body);
+  }, [day?.session, scheduleActiveRestNotification]);
 
   const stopRest = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (hideRestTimerTimeoutRef.current) clearTimeout(hideRestTimerTimeoutRef.current);
     setRestRunning(false);
     setRestVisible(false);
-  }, []);
+    setRestSeconds(0);
+    setRestEndsAt(null);
+    void cancelActiveRestNotification();
+  }, [cancelActiveRestNotification]);
 
   const adjustRest = useCallback((delta: number) => {
-    setRestSeconds(prev => Math.max(0, prev + delta));
-  }, []);
+    setRestEndsAt(prevEndsAt => {
+      if (!prevEndsAt) return prevEndsAt;
+
+      const nextEndsAt = Math.max(Date.now(), prevEndsAt + (delta * 1000));
+      const nextSeconds = Math.max(0, Math.ceil((nextEndsAt - Date.now()) / 1000));
+      setRestSeconds(nextSeconds);
+      setRestRunning(nextSeconds > 0);
+      setRestVisible(nextSeconds > 0);
+
+      if (nextSeconds === 0) {
+        void cancelActiveRestNotification();
+      } else if (activeTimerIdRef.current) {
+        void scheduleActiveRestNotification(
+          activeTimerIdRef.current,
+          nextSeconds,
+          nextEndsAt,
+          activeTimerTitleRef.current,
+          activeTimerBodyRef.current,
+        );
+      }
+
+      return nextSeconds === 0 ? null : nextEndsAt;
+    });
+  }, [cancelActiveRestNotification, scheduleActiveRestNotification]);
+
+  const handleEnableNotifications = useCallback(async () => {
+    if (Platform.OS !== 'web') return;
+
+    setNotificationLoading(true);
+    try {
+      const nextState = await enableRestTimerNotifications();
+      setNotificationState(nextState);
+
+      if (
+        nextState.status === 'ready' &&
+        restRunning &&
+        restEndsAt &&
+        activeTimerIdRef.current
+      ) {
+        const remaining = Math.max(0, Math.ceil((restEndsAt - Date.now()) / 1000));
+        if (remaining > 0) {
+          await scheduleActiveRestNotification(
+            activeTimerIdRef.current,
+            remaining,
+            restEndsAt,
+            activeTimerTitleRef.current,
+            activeTimerBodyRef.current,
+          );
+        }
+      }
+    } finally {
+      setNotificationLoading(false);
+    }
+  }, [restEndsAt, restRunning, scheduleActiveRestNotification]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -172,7 +348,7 @@ export default function WorkoutScreen() {
       return next;
     });
 
-    startRest(exercises[exIdx].rest);
+    startRest(exercises[exIdx].rest, exercises[exIdx].name);
   }, [sets, exercises, persistDraft, startRest]);
 
   const updateSet = useCallback((exIdx: number, setIdx: number, field: 'weight' | 'reps', value: string) => {
@@ -240,6 +416,7 @@ export default function WorkoutScreen() {
       logWorkout(dayId, exerciseSets, dateKey);
     }
 
+    void cancelActiveRestNotification();
     clearWorkoutDraft(dayId);
     markCompleted(dateKey, dayId);
     setShowFinishModal(false);
@@ -247,7 +424,7 @@ export default function WorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     setTimeout(() => router.back(), 500);
-  }, [clearWorkoutDraft, dayId, exercises, sets, logWorkout, markCompleted]);
+  }, [cancelActiveRestNotification, clearWorkoutDraft, dayId, exercises, sets, logWorkout, markCompleted]);
 
   if (!day) {
     return (
@@ -397,26 +574,44 @@ export default function WorkoutScreen() {
       {/* Rest Timer */}
       {restVisible && (
         <View style={[styles.restTimer, { bottom: insets.bottom + 20 }]}>
-          <View>
-            <Text style={styles.restLabel}>Rest</Text>
-            <Text style={[
-              styles.restTime,
-              restSeconds === 0 ? styles.restTimeDone : restSeconds <= 15 ? styles.restTimeWarning : {}
-            ]}>
-              {restSeconds === 0 ? 'Go!' : formatTime(restSeconds)}
-            </Text>
+          <View style={styles.restTimerMain}>
+            <View>
+              <Text style={styles.restLabel}>Rest</Text>
+              <Text style={[
+                styles.restTime,
+                restSeconds === 0 ? styles.restTimeDone : restSeconds <= 15 ? styles.restTimeWarning : {}
+              ]}>
+                {restSeconds === 0 ? 'Go!' : formatTime(restSeconds)}
+              </Text>
+            </View>
+            <View style={styles.restBtns}>
+              <TouchableOpacity style={styles.restBtn} onPress={() => adjustRest(-30)}>
+                <Text style={styles.restBtnText}>-30s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.restBtn} onPress={() => adjustRest(30)}>
+                <Text style={styles.restBtnText}>+30s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.restBtn, styles.restBtnSkip]} onPress={stopRest}>
+                <Text style={[styles.restBtnText, { color: '#000', fontFamily: 'Inter_700Bold' }]}>Skip</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.restBtns}>
-            <TouchableOpacity style={styles.restBtn} onPress={() => adjustRest(-30)}>
-              <Text style={styles.restBtnText}>-30s</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.restBtn} onPress={() => adjustRest(30)}>
-              <Text style={styles.restBtnText}>+30s</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.restBtn, styles.restBtnSkip]} onPress={stopRest}>
-              <Text style={[styles.restBtnText, { color: '#000', fontFamily: 'Inter_700Bold' }]}>Skip</Text>
-            </TouchableOpacity>
-          </View>
+          {Platform.OS === 'web' && notificationState.message ? (
+            <View style={styles.notificationBanner}>
+              <Text style={styles.notificationBannerText}>{notificationState.message}</Text>
+              {notificationState.canEnable && (
+                <TouchableOpacity
+                  style={[styles.notificationBannerBtn, notificationLoading && styles.notificationBannerBtnDisabled]}
+                  onPress={handleEnableNotifications}
+                  disabled={notificationLoading}
+                >
+                  <Text style={styles.notificationBannerBtnText}>
+                    {notificationLoading ? 'Enabling...' : 'Enable Alerts'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -746,6 +941,12 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 20,
   },
+  restTimerMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   restLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: 10,
@@ -769,6 +970,8 @@ const styles = StyleSheet.create({
   restBtns: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   restBtn: {
     backgroundColor: Colors.surface3,
@@ -788,6 +991,36 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 12,
     color: Colors.text2,
+  },
+  notificationBanner: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 12,
+    gap: 10,
+  },
+  notificationBannerText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.text2,
+    lineHeight: 18,
+  },
+  notificationBannerBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accent,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  notificationBannerBtnDisabled: {
+    opacity: 0.7,
+  },
+  notificationBannerBtnText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
+    color: '#000',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   modalOverlay: {
     flex: 1,

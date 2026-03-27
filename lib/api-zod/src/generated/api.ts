@@ -14,3 +14,62 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Stores or updates a web push subscription for the current install.
+ * @summary Upsert notification subscription
+ */
+export const UpsertNotificationSubscriptionBody = zod.object({
+  installId: zod.string(),
+  subscription: zod.object({
+    endpoint: zod.string(),
+    expirationTime: zod.number().nullable(),
+    keys: zod.object({
+      p256dh: zod.string(),
+      auth: zod.string(),
+    }),
+  }),
+});
+
+export const UpsertNotificationSubscriptionResponse = zod.object({
+  status: zod.string(),
+  installId: zod.string(),
+});
+
+/**
+ * Creates or replaces a pending end-of-rest notification.
+ * @summary Schedule rest timer notification
+ */
+export const ScheduleRestTimerNotificationBody = zod.object({
+  timerId: zod.string(),
+  installId: zod.string(),
+  dayId: zod.string(),
+  route: zod.string(),
+  durationSeconds: zod.number(),
+  scheduledFor: zod.date(),
+  title: zod.string(),
+  body: zod.string(),
+});
+
+export const ScheduleRestTimerNotificationResponse = zod.object({
+  status: zod.string(),
+  timerId: zod.string(),
+  scheduledFor: zod.date(),
+});
+
+/**
+ * Cancels a pending timer notification for the current install.
+ * @summary Cancel rest timer notification
+ */
+export const CancelRestTimerNotificationParams = zod.object({
+  timerId: zod.coerce.string(),
+});
+
+export const CancelRestTimerNotificationQueryParams = zod.object({
+  installId: zod.coerce.string(),
+});
+
+export const CancelRestTimerNotificationResponse = zod.object({
+  status: zod.string(),
+  timerId: zod.string(),
+});

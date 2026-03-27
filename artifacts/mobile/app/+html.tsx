@@ -16,6 +16,9 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="theme-color" content={APP_BACKGROUND} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="/app-icon.png" />
         <ScrollViewStyleReset />
         <style
           dangerouslySetInnerHTML={{

@@ -8,3 +8,50 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface WebPushSubscription {
+  endpoint: string;
+  expirationTime: number | null;
+  keys: PushSubscriptionKeys;
+}
+
+export interface NotificationSubscriptionUpsertRequest {
+  installId: string;
+  subscription: WebPushSubscription;
+}
+
+export interface NotificationSubscriptionUpsertResponse {
+  status: string;
+  installId: string;
+}
+
+export interface RestTimerNotificationScheduleRequest {
+  timerId: string;
+  installId: string;
+  dayId: string;
+  route: string;
+  durationSeconds: number;
+  scheduledFor: string;
+  title: string;
+  body: string;
+}
+
+export interface RestTimerNotificationScheduleResponse {
+  status: string;
+  timerId: string;
+  scheduledFor: string;
+}
+
+export interface RestTimerNotificationCancelResponse {
+  status: string;
+  timerId: string;
+}
+
+export type CancelRestTimerNotificationParams = {
+  installId: string;
+};

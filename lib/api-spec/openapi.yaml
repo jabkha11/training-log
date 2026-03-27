@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: notifications
+    description: Rest timer notification operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /notifications/subscriptions:
+    post:
+      operationId: upsertNotificationSubscription
+      tags: [notifications]
+      summary: Upsert notification subscription
+      description: Stores or updates a web push subscription for the current install.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSubscriptionUpsertRequest"
+      responses:
+        "200":
+          description: Subscription stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSubscriptionUpsertResponse"
+  /notifications/rest-timers:
+    post:
+      operationId: scheduleRestTimerNotification
+      tags: [notifications]
+      summary: Schedule rest timer notification
+      description: Creates or replaces a pending end-of-rest notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestTimerNotificationScheduleRequest"
+      responses:
+        "200":
+          description: Timer scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestTimerNotificationScheduleResponse"
+  /notifications/rest-timers/{timerId}:
+    delete:
+      operationId: cancelRestTimerNotification
+      tags: [notifications]
+      summary: Cancel rest timer notification
+      description: Cancels a pending timer notification for the current install.
+      parameters:
+        - name: timerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: installId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Timer canceled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestTimerNotificationCancelResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +97,100 @@ components:
           type: string
       required:
         - status
-
+    PushSubscriptionKeys:
+      type: object
+      properties:
+        p256dh:
+          type: string
+        auth:
+          type: string
+      required:
+        - p256dh
+        - auth
+    WebPushSubscription:
+      type: object
+      properties:
+        endpoint:
+          type: string
+        expirationTime:
+          type: integer
+          nullable: true
+        keys:
+          $ref: "#/components/schemas/PushSubscriptionKeys"
+      required:
+        - endpoint
+        - expirationTime
+        - keys
+    NotificationSubscriptionUpsertRequest:
+      type: object
+      properties:
+        installId:
+          type: string
+        subscription:
+          $ref: "#/components/schemas/WebPushSubscription"
+      required:
+        - installId
+        - subscription
+    NotificationSubscriptionUpsertResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        installId:
+          type: string
+      required:
+        - status
+        - installId
+    RestTimerNotificationScheduleRequest:
+      type: object
+      properties:
+        timerId:
+          type: string
+        installId:
+          type: string
+        dayId:
+          type: string
+        route:
+          type: string
+        durationSeconds:
+          type: integer
+        scheduledFor:
+          type: string
+          format: date-time
+        title:
+          type: string
+        body:
+          type: string
+      required:
+        - timerId
+        - installId
+        - dayId
+        - route
+        - durationSeconds
+        - scheduledFor
+        - title
+        - body
+    RestTimerNotificationScheduleResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timerId:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+      required:
+        - status
+        - timerId
+        - scheduledFor
+    RestTimerNotificationCancelResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timerId:
+          type: string
+      required:
+        - status
+        - timerId
