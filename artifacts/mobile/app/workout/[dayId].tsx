@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/colors';
 import { DAYS } from '@/constants/workoutData';
 import { useWorkout } from '@/context/WorkoutContext';
-import type { SetLog } from '@/context/WorkoutContext';
+import type { DraftSetLog, SetLog } from '@/context/WorkoutContext';
 import { formatLocalDateKey } from '@/lib/date';
 
 
@@ -26,17 +26,55 @@ interface SetState {
   completed: boolean;
 }
 
+function createEmptySets(
+  exercises: typeof DAYS[number]['exercises'] | undefined,
+): SetState[][] {
+  return (exercises ?? []).map(ex =>
+    Array.from({ length: ex.sets }, () => ({ weight: '', reps: '', completed: false }))
+  );
+}
+
+function normalizeDraftSets(
+  exercises: typeof DAYS[number]['exercises'] | undefined,
+  draftSets?: DraftSetLog[][],
+): SetState[][] {
+  return (exercises ?? []).map((ex, exIdx) =>
+    Array.from({ length: ex.sets }, (_, setIdx) => {
+      const existing = draftSets?.[exIdx]?.[setIdx];
+      return {
+        weight: existing?.weight ?? '',
+        reps: existing?.reps ?? '',
+        completed: existing?.completed ?? false,
+      };
+    })
+  );
+}
+
 export default function WorkoutScreen() {
   const { dayId } = useLocalSearchParams<{ dayId: string }>();
   const insets = useSafeAreaInsets();
-  const { getPrevSessions, logWorkout, markCompleted, isDeloadWeek } = useWorkout();
+  const {
+    getPrevSessions,
+    getWorkoutDraft,
+    saveWorkoutDraft,
+    clearWorkoutDraft,
+    logWorkout,
+    markCompleted,
+    isDeloadWeek,
+  } = useWorkout();
 
   const day = DAYS.find(d => d.id === dayId);
   const exercises = day?.exercises ?? [];
+  const todayKey = formatLocalDateKey();
 
-  const [sets, setSets] = useState<SetState[][]>(() =>
-    exercises.map(ex => Array.from({ length: ex.sets }, () => ({ weight: '', reps: '', completed: false })))
-  );
+  const [sets, setSets] = useState<SetState[][]>(() => {
+    if (!dayId) return createEmptySets(exercises);
+    const draft = getWorkoutDraft(dayId);
+    if (draft?.date === todayKey) {
+      return normalizeDraftSets(exercises, draft.exercises);
+    }
+    return createEmptySets(exercises);
+  });
 
   const [restSeconds, setRestSeconds] = useState(0);
   const [restRunning, setRestRunning] = useState(false);
@@ -46,6 +84,33 @@ export default function WorkoutScreen() {
   const [showFinishModal, setShowFinishModal] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
+
+  useEffect(() => {
+    if (!dayId) {
+      setSets(createEmptySets(exercises));
+      return;
+    }
+
+    const draft = getWorkoutDraft(dayId);
+    if (draft?.date === todayKey) {
+      setSets(normalizeDraftSets(exercises, draft.exercises));
+      return;
+    }
+
+    if (draft && draft.date !== todayKey) {
+      clearWorkoutDraft(dayId);
+    }
+
+    setSets(createEmptySets(exercises));
+  }, [clearWorkoutDraft, dayId, exercises, getWorkoutDraft, todayKey]);
+
+  const persistDraft = useCallback((nextSets: SetState[][]) => {
+    if (!dayId) return;
+    saveWorkoutDraft(dayId, {
+      date: todayKey,
+      exercises: nextSets,
+    });
+  }, [dayId, saveWorkoutDraft, todayKey]);
 
   // Rest timer
   useEffect(() => {
@@ -103,20 +168,22 @@ export default function WorkoutScreen() {
       const next = prev.map(ex => [...ex]);
       next[exIdx] = [...next[exIdx]];
       next[exIdx][setIdx] = { ...next[exIdx][setIdx], completed: true };
+      persistDraft(next);
       return next;
     });
 
     startRest(exercises[exIdx].rest);
-  }, [sets, exercises, startRest]);
+  }, [sets, exercises, persistDraft, startRest]);
 
   const updateSet = useCallback((exIdx: number, setIdx: number, field: 'weight' | 'reps', value: string) => {
     setSets(prev => {
       const next = prev.map(ex => [...ex]);
       next[exIdx] = [...next[exIdx]];
       next[exIdx][setIdx] = { ...next[exIdx][setIdx], [field]: value };
+      persistDraft(next);
       return next;
     });
-  }, []);
+  }, [persistDraft]);
 
   const getPrevLastSession = useCallback((exIdx: number) => {
     const sessions = getPrevSessions(dayId!, exIdx);
@@ -173,13 +240,14 @@ export default function WorkoutScreen() {
       logWorkout(dayId, exerciseSets, dateKey);
     }
 
+    clearWorkoutDraft(dayId);
     markCompleted(dateKey, dayId);
     setShowFinishModal(false);
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     setTimeout(() => router.back(), 500);
-  }, [dayId, exercises, sets, logWorkout, markCompleted]);
+  }, [clearWorkoutDraft, dayId, exercises, sets, logWorkout, markCompleted]);
 
   if (!day) {
     return (
@@ -292,7 +360,6 @@ export default function WorkoutScreen() {
                       }
                       placeholderTextColor={isDeloadWeek && deloadWeight ? Colors.orange + '80' : Colors.text3}
                       keyboardType="decimal-pad"
-                      editable={!set.completed}
                     />
                     <TextInput
                       style={[styles.setInput, !set.reps && styles.setInputPlaceholder]}
@@ -301,7 +368,6 @@ export default function WorkoutScreen() {
                       placeholder={prevReps ? `${prevReps}` : `${ex.repRange[0]}-${ex.repRange[1]}`}
                       placeholderTextColor={Colors.text3}
                       keyboardType="number-pad"
-                      editable={!set.completed}
                     />
                     <TouchableOpacity
                       style={[styles.logBtn, set.completed && styles.logBtnDone]}

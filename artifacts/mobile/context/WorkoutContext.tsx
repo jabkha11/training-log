@@ -16,6 +16,17 @@ export interface SessionLog {
   sets: SetLog[];
 }
 
+export interface DraftSetLog {
+  weight: string;
+  reps: string;
+  completed: boolean;
+}
+
+export interface WorkoutDraft {
+  date: string;
+  exercises: DraftSetLog[][];
+}
+
 export interface WeightLogEntry {
   id: string;
   date: string;
@@ -24,6 +35,7 @@ export interface WeightLogEntry {
 
 export type WorkoutLogData = Record<string, SessionLog[]>;
 export type CompletedWorkouts = Record<string, string>;
+export type WorkoutDrafts = Record<string, WorkoutDraft>;
 
 interface WorkoutContextType {
   workoutLog: WorkoutLogData;
@@ -32,6 +44,9 @@ interface WorkoutContextType {
   strengthProfile: StrengthProfile | null;
   strengthLifts: StrengthLifts;
   weightLogs: WeightLogEntry[];
+  getWorkoutDraft: (dayId: string) => WorkoutDraft | null;
+  saveWorkoutDraft: (dayId: string, draft: WorkoutDraft) => void;
+  clearWorkoutDraft: (dayId: string) => void;
   setIsDeloadWeek: (v: boolean) => void;
   setStrengthProfile: (profile: StrengthProfile | null) => void;
   updateStrengthLift: (liftKey: StrengthLiftKey, entry: StrengthLiftEntry) => void;
@@ -92,6 +107,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [strengthProfile, setStrengthProfileState] = useState<StrengthProfile | null>(null);
   const [strengthLifts, setStrengthLifts] = useState<StrengthLifts>(DEFAULT_STRENGTH_LIFTS);
   const [weightLogs, setWeightLogs] = useState<WeightLogEntry[]>([]);
+  const [workoutDrafts, setWorkoutDrafts] = useState<WorkoutDrafts>({});
 
   const stateRef = useRef<{
     workoutLog: WorkoutLogData;
@@ -100,6 +116,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     strengthProfile: StrengthProfile | null;
     strengthLifts: StrengthLifts;
     weightLogs: WeightLogEntry[];
+    workoutDrafts: WorkoutDrafts;
   }>({
     workoutLog: {},
     completedWorkouts: {},
@@ -107,6 +124,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     strengthProfile: null,
     strengthLifts: DEFAULT_STRENGTH_LIFTS,
     weightLogs: [],
+    workoutDrafts: {},
   });
 
   // Ensures AsyncStorage writes don't race each other and corrupt stored state.
@@ -129,6 +147,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         let nextStrengthProfile: StrengthProfile | null = null;
         let nextStrengthLifts: StrengthLifts = DEFAULT_STRENGTH_LIFTS;
         let nextWeightLogs: WeightLogEntry[] = [];
+        let nextWorkoutDrafts: WorkoutDrafts = {};
 
         if (combinedState) {
           const parsed = JSON.parse(combinedState) as {
@@ -138,6 +157,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             strengthProfile?: StrengthProfile | null;
             strengthLifts?: Partial<StrengthLifts>;
             weightLogs?: WeightLogEntry[];
+            workoutDrafts?: WorkoutDrafts;
           };
           nextWorkoutLog = parsed.workoutLog ?? {};
           nextCompletedWorkouts = parsed.completedWorkouts ?? {};
@@ -145,6 +165,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           nextStrengthProfile = parsed.strengthProfile ?? null;
           nextStrengthLifts = { ...DEFAULT_STRENGTH_LIFTS, ...(parsed.strengthLifts ?? {}) };
           nextWeightLogs = (parsed.weightLogs ?? []).slice().sort((a, b) => b.date.localeCompare(a.date));
+          nextWorkoutDrafts = parsed.workoutDrafts ?? {};
         } else {
           if (log) nextWorkoutLog = JSON.parse(log);
           if (completed) nextCompletedWorkouts = JSON.parse(completed);
@@ -158,6 +179,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           strengthProfile: nextStrengthProfile,
           strengthLifts: nextStrengthLifts,
           weightLogs: nextWeightLogs,
+          workoutDrafts: nextWorkoutDrafts,
         };
 
         setWorkoutLog(nextWorkoutLog);
@@ -166,6 +188,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         setStrengthProfileState(nextStrengthProfile);
         setStrengthLifts(nextStrengthLifts);
         setWeightLogs(nextWeightLogs);
+        setWorkoutDrafts(nextWorkoutDrafts);
 
         const { weekStart, weekEnd } = getCurrentLocalWeekRange();
         if (weeklyVol) {
@@ -200,6 +223,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
                 strengthProfile: nextStrengthProfile,
                 strengthLifts: nextStrengthLifts,
                 weightLogs: nextWeightLogs,
+                workoutDrafts: nextWorkoutDrafts,
               }),
             ).catch(() => {});
         }
@@ -286,6 +310,45 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     });
   }, [createSnapshot, enqueueWrite]);
 
+  const getWorkoutDraft = useCallback((dayId: string) => {
+    return stateRef.current.workoutDrafts[dayId] ?? null;
+  }, []);
+
+  const saveWorkoutDraft = useCallback((dayId: string, draft: WorkoutDraft) => {
+    const nextWorkoutDrafts = {
+      ...stateRef.current.workoutDrafts,
+      [dayId]: draft,
+    };
+    stateRef.current = {
+      ...stateRef.current,
+      workoutDrafts: nextWorkoutDrafts,
+    };
+    setWorkoutDrafts(nextWorkoutDrafts);
+
+    const snapshot = createSnapshot({ workoutDrafts: nextWorkoutDrafts });
+    enqueueWrite(async () => {
+      await AsyncStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(snapshot));
+    });
+  }, [createSnapshot, enqueueWrite]);
+
+  const clearWorkoutDraft = useCallback((dayId: string) => {
+    if (!stateRef.current.workoutDrafts[dayId]) return;
+
+    const nextWorkoutDrafts = { ...stateRef.current.workoutDrafts };
+    delete nextWorkoutDrafts[dayId];
+
+    stateRef.current = {
+      ...stateRef.current,
+      workoutDrafts: nextWorkoutDrafts,
+    };
+    setWorkoutDrafts(nextWorkoutDrafts);
+
+    const snapshot = createSnapshot({ workoutDrafts: nextWorkoutDrafts });
+    enqueueWrite(async () => {
+      await AsyncStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(snapshot));
+    });
+  }, [createSnapshot, enqueueWrite]);
+
   const logWorkout = useCallback((
     dayId: string,
     exerciseSets: { exIdx: number; sets: SetLog[] }[],
@@ -301,9 +364,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     stateRef.current = {
       ...stateRef.current,
       workoutLog: nextLog,
+      workoutDrafts: Object.fromEntries(
+        Object.entries(stateRef.current.workoutDrafts).filter(([draftDayId]) => draftDayId !== dayId)
+      ),
     };
 
     setWorkoutLog(nextLog);
+    setWorkoutDrafts(stateRef.current.workoutDrafts);
 
     // Update weekly volume cache (derived from workout logs, but stored locally for speed/offline-first).
     const { weekStart, weekEnd } = getCurrentLocalWeekRange();
@@ -313,7 +380,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     enqueueWrite(async () => {
       await AsyncStorage.setItem(
         STORAGE_KEY_STATE,
-        JSON.stringify(createSnapshot({ workoutLog: nextLog })),
+        JSON.stringify(createSnapshot({ workoutLog: nextLog, workoutDrafts: stateRef.current.workoutDrafts })),
       );
       await AsyncStorage.setItem(
         STORAGE_KEY_WEEKLY_VOLUME,
@@ -413,6 +480,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       strengthProfile: null,
       strengthLifts: DEFAULT_STRENGTH_LIFTS,
       weightLogs: [],
+      workoutDrafts: {},
     };
     setWorkoutLog({});
     setCompletedWorkouts({});
@@ -421,6 +489,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setStrengthProfileState(null);
     setStrengthLifts(DEFAULT_STRENGTH_LIFTS);
     setWeightLogs([]);
+    setWorkoutDrafts({});
     enqueueWrite(async () => {
       await AsyncStorage.multiRemove([
         STORAGE_KEY_LOG,
@@ -459,6 +528,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       strengthProfile,
       strengthLifts,
       weightLogs,
+      getWorkoutDraft,
+      saveWorkoutDraft,
+      clearWorkoutDraft,
       setIsDeloadWeek,
       setStrengthProfile,
       updateStrengthLift,
