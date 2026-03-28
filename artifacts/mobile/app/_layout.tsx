@@ -14,6 +14,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WebInstallPrompt } from "@/components/WebInstallPrompt";
 import { CatalogProvider } from "@/context/CatalogContext";
 import { ProgramCreationProvider } from "@/context/ProgramCreationContext";
 import { ProgramProvider } from "@/context/ProgramContext";
@@ -130,6 +131,7 @@ export default function RootLayout() {
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <KeyboardProvider>
                       <RootLayoutNav />
+                      <WebInstallPrompt />
                     </KeyboardProvider>
                   </GestureHandlerRootView>
                 </WorkoutProvider>

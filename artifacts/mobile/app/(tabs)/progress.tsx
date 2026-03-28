@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   LayoutChangeEvent,
@@ -360,7 +360,7 @@ function EditSessionModal({ session, onClose, onSave }: { session: SessionLog | 
 }
 
 export default function ProgressScreen() {
-  const params = useLocalSearchParams<{ slotId?: string }>();
+  const params = useLocalSearchParams<{ slotId?: string; exerciseName?: string; focusKey?: string }>();
   const { days, getDaySlots } = useProgram();
   const { workoutLog, updateSession, deleteSession, clearAllData } = useWorkout();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -370,6 +370,7 @@ export default function ProgressScreen() {
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [editingSession, setEditingSession] = useState<SessionLog | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const lastHandledRouteRequestRef = useRef<string | null>(null);
 
   const slots = useMemo(() => days.flatMap(day => getDaySlots(day.id)), [days, getDaySlots]);
   const slotOptions = useMemo(() => getProgressSlotOptions(days, slots, workoutLog), [days, slots, workoutLog]);
@@ -388,15 +389,50 @@ export default function ProgressScreen() {
     if (Array.isArray(raw)) return raw[0] ?? null;
     return raw ?? null;
   }, [params.slotId]);
+  const requestedExerciseName = useMemo(() => {
+    const raw = params.exerciseName;
+    if (Array.isArray(raw)) return raw[0] ?? null;
+    return raw ?? null;
+  }, [params.exerciseName]);
+  const requestToken = useMemo(() => {
+    const raw = params.focusKey;
+    if (Array.isArray(raw)) return raw[0] ?? null;
+    if (raw) return raw;
+    const fallbackToken = [requestedKey, requestedExerciseName].filter(Boolean).join('::');
+    return fallbackToken || null;
+  }, [params.focusKey, requestedExerciseName, requestedKey]);
+  const requestedOptionKey = useMemo(() => {
+    if (requestedKey && slotOptions.some(option => option.slotId === requestedKey)) {
+      return requestedKey;
+    }
+
+    const normalizedExerciseName = requestedExerciseName?.trim().toLowerCase();
+    if (!normalizedExerciseName) return null;
+
+    const exactMatches = slotOptions.filter(option => option.exerciseName.trim().toLowerCase() === normalizedExerciseName);
+    const partialMatches = slotOptions.filter(option => option.exerciseName.trim().toLowerCase().includes(normalizedExerciseName));
+    const bestMatch = exactMatches.find(option => option.hasHistory)
+      ?? exactMatches[0]
+      ?? partialMatches.find(option => option.hasHistory)
+      ?? partialMatches[0]
+      ?? null;
+
+    return bestMatch?.slotId ?? null;
+  }, [requestedExerciseName, requestedKey, slotOptions]);
   const activeKey = useMemo(() => {
     if (selectedKey && slotOptions.some(option => option.slotId === selectedKey)) {
       return selectedKey;
     }
-    if (requestedKey && slotOptions.some(option => option.slotId === requestedKey)) {
-      return requestedKey;
-    }
     return defaultKey;
-  }, [defaultKey, requestedKey, selectedKey, slotOptions]);
+  }, [defaultKey, selectedKey, slotOptions]);
+
+  useEffect(() => {
+    if (!requestToken || !requestedOptionKey) return;
+    if (lastHandledRouteRequestRef.current === requestToken) return;
+    setSelectedKey(requestedOptionKey);
+    setShowPicker(false);
+    lastHandledRouteRequestRef.current = requestToken;
+  }, [requestToken, requestedOptionKey]);
 
   useEffect(() => {
     if (activeKey && selectedKey !== activeKey) {

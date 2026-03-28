@@ -417,7 +417,16 @@ export default function CalendarScreen() {
                           <Text style={styles.exerciseActionText}>Edit</Text>
                         </Pressable>
                         <Pressable
-                          onPress={() => router.push({ pathname: '/progress', params: { slotId: exercise.slotId } })}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/progress',
+                              params: {
+                                slotId: exercise.slotId,
+                                exerciseName: exercise.name,
+                                focusKey: String(Date.now()),
+                              },
+                            })
+                          }
                           style={styles.exerciseActionBtn}
                         >
                           <Feather name="trending-up" size={14} color={Colors.accent} />
