@@ -14,6 +14,8 @@ import {
   createProgramId,
   createSavedProgram,
   getProgramUpdatedAt,
+  getProgramWeekdayLabel,
+  getProgramWeekdayName,
   getSlotsForDay,
   normalizeDayOrders,
   normalizeProgramState,
@@ -187,6 +189,15 @@ function makeUniqueProgramName(existing: SavedProgram[], base: string) {
   let index = 2;
   while (names.has(`${base} ${index}`)) index += 1;
   return `${base} ${index}`;
+}
+
+function applyDaySequence(days: ProgramDay[]) {
+  return days.map((day, index) => ({
+    ...day,
+    name: getProgramWeekdayName(index),
+    label: getProgramWeekdayLabel(index),
+    sortOrder: index,
+  }));
 }
 
 export function ProgramProvider({ children }: { children: React.ReactNode }) {
@@ -442,7 +453,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
         program: {
           ...program.program,
           updatedAt: getProgramUpdatedAt(),
-          days: normalizeDayOrders([...ordered, ...sortProgramDays(remainder)]),
+          days: applyDaySequence([...ordered, ...sortProgramDays(remainder)]),
         },
       };
     }));
@@ -463,7 +474,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
         program: {
           ...program.program,
           updatedAt: getProgramUpdatedAt(),
-          days: normalizeDayOrders(next),
+          days: applyDaySequence(next),
         },
       };
     }));
@@ -608,6 +619,10 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
       const nextDaySlots = daySlots.slice();
       const [moved] = nextDaySlots.splice(index, 1);
       nextDaySlots.splice(targetIndex, 0, moved);
+      const resequencedDaySlots = nextDaySlots.map((entry, nextIndex) => ({
+        ...entry,
+        sortOrder: nextIndex,
+      }));
       return {
         ...program,
         program: {
@@ -617,7 +632,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
             ...program.program,
             slots: [
               ...program.program.slots.filter(entry => entry.dayId !== slot.dayId),
-              ...nextDaySlots,
+              ...resequencedDaySlots,
             ],
           }).slots,
         },

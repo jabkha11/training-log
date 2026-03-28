@@ -274,7 +274,7 @@ export default function WorkoutScreen() {
     if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) return requestedDate;
     return todayKey;
   }, [requestedDate, todayKey]);
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? Math.max(insets.top, 14) : insets.top;
 
   const [extraExercises, setExtraExercises] = useState<WorkoutDraftExercise[]>([]);
   const [sets, setSets] = useState<ExerciseSetState>({});

@@ -54,7 +54,7 @@ export default function HomeScreen() {
   const [devPassword, setDevPassword] = useState('');
   const [devUnlocked, setDevUnlocked] = useState(false);
 
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? Math.max(insets.top, 14) : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const todayIdx = getTodayProgramIndex(days.length);
   const todayId = days[todayIdx]?.id;
@@ -116,6 +116,21 @@ export default function HomeScreen() {
         : 'Log your first workout and your momentum will start showing up here.',
     };
   }, [workoutLog]);
+
+  const pageHeaderCopy = currentDay
+    ? currentDay.rest
+      ? {
+          title: 'Welcome back',
+          subtitle: 'Today is set aside for recovery. Take it easy, reset well, and get ready for the next session.',
+        }
+      : {
+          title: 'Welcome back',
+          subtitle: `Your ${currentDay.session} session is ready whenever you are. Here’s what’s lined up for today.`,
+        }
+    : {
+        title: 'Welcome back',
+        subtitle: 'Pick up where you left off and build some momentum this week.',
+      };
 
   const handleSeedDemoData = async () => {
     const confirmed = await confirmAlert({
@@ -207,12 +222,27 @@ export default function HomeScreen() {
             contentContainerStyle={[styles.cardsContent, { paddingBottom: bottomPad + 100 }]}
             showsVerticalScrollIndicator={false}
           >
+            <View style={styles.pageHeader}>
+              <View style={styles.pageHeaderTopRow}>
+                <View style={styles.pageHeaderCopy}>
+                  <Text style={styles.pageEyebrow}>Home</Text>
+                  <Text style={styles.pageTitle}>{pageHeaderCopy.title}</Text>
+                  <Text style={styles.pageSubtitle}>{pageHeaderCopy.subtitle}</Text>
+                </View>
+                <TouchableOpacity
+                  testID="home-settings-button"
+                  accessibilityLabel="Open settings"
+                  style={styles.devSettingsBtn}
+                  onPress={() => setShowSettings(true)}
+                >
+                  <Feather name="settings" size={16} color={Colors.text2} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View style={styles.heroCard}>
               <View style={styles.heroTopRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.logo}>TRAINING LOG</Text>
-                  <Text style={styles.subtitle}>Progressive Overload Tracker</Text>
-                  <Text style={styles.heroEyebrow}>Today</Text>
                   <Text style={styles.heroTitle}>{currentDay?.session ?? 'No program loaded'}</Text>
                   <Text style={styles.heroSubtitle}>
                     {currentDay
@@ -221,16 +251,6 @@ export default function HomeScreen() {
                         : `${currentDay.tag} · ${currentDaySlots.length} exercises`
                       : 'Load your program to see today’s training.'}
                   </Text>
-                </View>
-                <View style={styles.heroActions}>
-                  <TouchableOpacity
-                    testID="home-settings-button"
-                    accessibilityLabel="Open settings"
-                    style={styles.devSettingsBtn}
-                    onPress={() => setShowSettings(true)}
-                  >
-                    <Feather name="settings" size={16} color={Colors.text2} />
-                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -513,22 +533,41 @@ const styles = StyleSheet.create({
   },
   cardsContent: {
     paddingHorizontal: 14,
-    paddingTop: 6,
+    paddingTop: 2,
     gap: 14,
   },
-  logo: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 18,
-    color: Colors.text,
-    letterSpacing: 1.8,
+  pageHeader: {
+    gap: 4,
+    paddingHorizontal: 4,
   },
-  subtitle: {
-    fontFamily: 'Inter_500Medium',
+  pageHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  pageHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  pageEyebrow: {
+    fontFamily: 'Inter_700Bold',
     fontSize: 10,
-    color: Colors.text3,
-    letterSpacing: 1.6,
+    color: Colors.accent,
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    marginTop: 2,
+  },
+  pageTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 30,
+    color: Colors.text,
+    lineHeight: 36,
+  },
+  pageSubtitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: Colors.text2,
+    lineHeight: 19,
   },
   heroCard: {
     backgroundColor: Colors.surface,
@@ -543,24 +582,12 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
   },
-  heroActions: {
-    gap: 10,
-    alignItems: 'flex-end',
-  },
-  heroEyebrow: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 10,
-    color: Colors.accent,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginTop: 12,
-  },
   heroTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: 28,
     color: Colors.text,
     lineHeight: 34,
-    marginTop: 4,
+    marginTop: 12,
   },
   heroSubtitle: {
     fontFamily: 'Inter_500Medium',

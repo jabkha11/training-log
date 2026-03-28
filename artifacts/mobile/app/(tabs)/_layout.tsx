@@ -13,7 +13,7 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "bolt", selected: "bolt.fill" }} />
-        <Label>Today</Label>
+        <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="progress">
         <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
@@ -84,7 +84,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Today",
+          title: "Home",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="bolt.fill" tintColor={color} size={22} />

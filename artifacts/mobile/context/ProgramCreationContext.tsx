@@ -219,7 +219,13 @@ export function ProgramCreationProvider({ children }: { children: React.ReactNod
   const reorderDays = useCallback((dayIds: string[]) => {
     mutateDraft(current => {
       const dayMap = new Map(current.program.days.map(day => [day.id, day]));
-      const ordered = dayIds.map(id => dayMap.get(id)).filter((day): day is ProgramDay => !!day);
+      const ordered = dayIds
+        .map(id => dayMap.get(id))
+        .filter((day): day is ProgramDay => !!day)
+        .map((day, index) => ({
+          ...day,
+          sortOrder: index,
+        }));
       if (ordered.length !== current.program.days.length) return current;
 
       return {

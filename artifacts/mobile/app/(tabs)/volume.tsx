@@ -215,7 +215,7 @@ export default function HeatmapScreen() {
   const [mode, setMode] = useState<HeatmapMode>('volume');
   const [side, setSide] = useState<HeatmapSide>('front');
   const [weightDraft, setWeightDraft] = useState('');
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? Math.max(insets.top, 14) : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const { weekStart, weekEnd } = useMemo(() => getCurrentLocalWeekRange(), []);
   const activeSlots = useMemo(() => days.flatMap(day => getDaySlots(day.id)), [days, getDaySlots]);

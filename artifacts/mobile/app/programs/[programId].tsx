@@ -228,7 +228,7 @@ export default function ProgramDetailScreen() {
 
   const program = programId ? getProgram(programId) : null;
   const days = useMemo(() => (programId ? getProgramDays(programId) : []), [getProgramDays, programId]);
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? Math.max(insets.top, 14) : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   useEffect(() => {
