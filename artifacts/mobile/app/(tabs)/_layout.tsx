@@ -27,6 +27,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "calendar", selected: "calendar" }} />
         <Label>Calendar</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="builder">
+        <Icon sf={{ default: "slider.horizontal.3", selected: "slider.horizontal.3" }} />
+        <Label>Programs</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -41,13 +45,24 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.text3,
+        tabBarLabelStyle: {
+          fontFamily: "Inter_700Bold",
+          fontSize: 10,
+          letterSpacing: 0.5,
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 6,
+        },
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : Colors.surface,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: isWeb ? 84 : 78,
+          paddingTop: 6,
+          paddingBottom: isWeb ? 12 : 10,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -60,7 +75,7 @@ function ClassicTabLayout() {
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: Colors.surface },
+                { backgroundColor: Colors.surface, borderTopColor: Colors.border },
               ]}
             />
           ) : null,
@@ -111,6 +126,18 @@ function ClassicTabLayout() {
               <SymbolView name="calendar" tintColor={color} size={22} />
             ) : (
               <Feather name="calendar" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="builder"
+        options={{
+          title: "Programs",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="slider.horizontal.3" tintColor={color} size={22} />
+            ) : (
+              <Feather name="sliders" size={22} color={color} />
             ),
         }}
       />

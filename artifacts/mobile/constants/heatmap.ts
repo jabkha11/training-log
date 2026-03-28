@@ -29,8 +29,11 @@ export type StrengthMuscleId =
   | 'front_delts'
   | 'lateral_delts'
   | 'upper_chest'
+  | 'abs'
+  | 'obliques'
   | 'lats'
   | 'mid_back'
+  | 'traps'
   | 'biceps'
   | 'brachioradialis'
   | 'triceps_long_head'
@@ -45,8 +48,11 @@ export type VolumeMuscleId =
   | 'shoulders'
   | 'lateral_delts'
   | 'upper_chest'
+  | 'abdominals'
+  | 'obliques'
   | 'long_head_triceps'
   | 'back'
+  | 'traps'
   | 'biceps'
   | 'forearms_total'
   | 'legs'
@@ -80,8 +86,11 @@ export const VOLUME_MUSCLE_CONFIG: Array<{
   { id: 'shoulders', label: 'Shoulders', sourceKey: 'Shoulders', side: 'both', target: { min: 8 } },
   { id: 'lateral_delts', label: 'Lateral Delts', sourceKey: 'Lateral Delts', side: 'both', target: { min: 14, max: 16 } },
   { id: 'upper_chest', label: 'Upper Chest', sourceKey: 'Upper Chest', side: 'front', target: { min: 10 } },
+  { id: 'abdominals', label: 'Abdominals', sourceKey: 'Abdominals', side: 'front', target: { min: 6 } },
+  { id: 'obliques', label: 'Obliques', sourceKey: 'Obliques', side: 'front', target: { min: 4 } },
   { id: 'long_head_triceps', label: 'Long Head Triceps', sourceKey: 'Long Head Triceps', side: 'back', target: { min: 10 } },
   { id: 'back', label: 'Back', sourceKey: 'Back', side: 'back', target: { min: 8 } },
+  { id: 'traps', label: 'Traps', sourceKey: 'Traps', side: 'back', target: { min: 6 } },
   { id: 'biceps', label: 'Biceps', sourceKey: 'Biceps', side: 'front', target: { min: 6 } },
   { id: 'forearms_total', label: 'Forearms', sourceKey: 'Forearms (total)', side: 'both', target: { min: 15, max: 18 } },
   { id: 'legs', label: 'Legs', sourceKey: 'Legs', side: 'both', target: { min: 10 } },
@@ -126,12 +135,12 @@ export const STRENGTH_LIFT_CONFIG: Record<
     label: 'Pull-Up / Lat Pulldown',
     note: 'For pull-ups, enter added weight only. Use 0 for bodyweight-only reps.',
     primaryMuscles: ['lats'],
-    secondaryMuscles: ['mid_back', 'biceps'],
+    secondaryMuscles: ['mid_back', 'traps', 'biceps'],
     standards: { beginner: 0, intermediate: 0.25, advanced: 0.75 },
   },
   seated_row: {
     label: 'Seated Cable Row',
-    primaryMuscles: ['mid_back'],
+    primaryMuscles: ['mid_back', 'traps'],
     secondaryMuscles: ['lats'],
     standards: { beginner: 0.6, intermediate: 0.9, advanced: 1.25 },
   },
@@ -150,13 +159,13 @@ export const STRENGTH_LIFT_CONFIG: Record<
   hack_squat: {
     label: 'Hack Squat / Leg Press',
     primaryMuscles: ['quads'],
-    secondaryMuscles: ['glutes'],
+    secondaryMuscles: ['glutes', 'abs', 'obliques'],
     standards: { beginner: 1.0, intermediate: 1.75, advanced: 2.5 },
   },
   romanian_deadlift: {
     label: 'Romanian Deadlift',
     primaryMuscles: ['hamstrings'],
-    secondaryMuscles: ['glutes'],
+    secondaryMuscles: ['glutes', 'abs', 'obliques'],
     standards: { beginner: 0.75, intermediate: 1.25, advanced: 1.75 },
   },
   standing_calf_raise: {
@@ -177,8 +186,11 @@ export const STRENGTH_MUSCLE_CONFIG: Array<{
   { id: 'front_delts', label: 'Front Delts', side: 'front', tracked: true, displayLiftKey: 'overhead_press' },
   { id: 'lateral_delts', label: 'Lateral Delts', side: 'both', tracked: true, displayLiftKey: 'overhead_press' },
   { id: 'upper_chest', label: 'Upper Chest', side: 'front', tracked: true, displayLiftKey: 'incline_press' },
+  { id: 'abs', label: 'Abdominals', side: 'front', tracked: true, displayLiftKey: 'romanian_deadlift' },
+  { id: 'obliques', label: 'Obliques', side: 'front', tracked: true, displayLiftKey: 'romanian_deadlift' },
   { id: 'lats', label: 'Lats', side: 'back', tracked: true, displayLiftKey: 'pullup' },
   { id: 'mid_back', label: 'Mid Back', side: 'back', tracked: true, displayLiftKey: 'seated_row' },
+  { id: 'traps', label: 'Traps', side: 'back', tracked: true, displayLiftKey: 'seated_row' },
   { id: 'biceps', label: 'Biceps', side: 'front', tracked: true, displayLiftKey: 'hammer_curl' },
   { id: 'brachioradialis', label: 'Brachioradialis', side: 'front', tracked: true, displayLiftKey: 'hammer_curl' },
   { id: 'triceps_long_head', label: 'Triceps (Long Head)', side: 'back', tracked: true, displayLiftKey: 'skull_crusher' },

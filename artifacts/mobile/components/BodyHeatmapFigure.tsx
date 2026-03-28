@@ -12,6 +12,8 @@ type HighlighterSlug =
   | 'head'
   | 'deltoids'
   | 'chest'
+  | 'abs'
+  | 'obliques'
   | 'biceps'
   | 'forearm'
   | 'quadriceps'
@@ -50,6 +52,8 @@ type SegmentId =
   | 'front_delts'
   | 'lateral_delts'
   | 'upper_chest'
+  | 'abs'
+  | 'obliques'
   | 'biceps'
   | 'brachioradialis'
   | 'quads'
@@ -57,6 +61,7 @@ type SegmentId =
   | 'rear_delts'
   | 'lats'
   | 'mid_back'
+  | 'traps'
   | 'triceps_long_head'
   | 'glutes'
   | 'hamstrings'
@@ -95,6 +100,8 @@ function buildFrontParts(colors: Partial<Record<SegmentId, string>>): ExtendedBo
   return [
     { slug: 'deltoids', color: colors.front_delts ?? colors.lateral_delts },
     { slug: 'chest', color: colors.upper_chest },
+    { slug: 'abs', color: colors.abs },
+    { slug: 'obliques', color: colors.obliques ?? colors.abs },
     { slug: 'biceps', color: colors.biceps },
     { slug: 'forearm', color: colors.brachioradialis ?? colors.forearms },
     { slug: 'quadriceps', color: colors.quads },
@@ -103,7 +110,7 @@ function buildFrontParts(colors: Partial<Record<SegmentId, string>>): ExtendedBo
 }
 
 function buildBackParts(colors: Partial<Record<SegmentId, string>>): ExtendedBodyPart[] {
-  const backUpper = colors.mid_back ?? colors.lats;
+  const backUpper = colors.traps ?? colors.mid_back ?? colors.lats;
   const backLower = colors.lats ?? colors.mid_back;
 
   return [
